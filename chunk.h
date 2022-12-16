@@ -17,8 +17,8 @@ typedef struct {
 } Chunk; //A code is a chunk pf size one byte;
 
 void initChunk (Chunk* chunk); //Define in the header file
-void writeChunk(Chunk *chunk, uint8_t byte); //append a byte to the chunk
 void freeChunk(Chunk* chunk); //Free the chunk
+void writeChunk(Chunk *chunk, uint8_t byte); //append a byte to the chunk
 
 // When the value of count is less than capacity this means that there is remaining space in the array
 #endif
