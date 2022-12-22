@@ -1,5 +1,0 @@
-cmake_minimum_required(VERSION 3.24.0)
-
-project(clox C)
-add_excutable(clox main.c memory.c chunk.c)
-
