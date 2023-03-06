@@ -7,7 +7,8 @@ TARGET = cpplox
 all: $(TARGET)
 
 $(TARGET):
-	$(CC) $(CFLAGS) -o $(TARGET).out *.c
+	$(CC) $(CFLAGS) -o $(TARGET).out src/*.c
 
 clean:
-	$(RM) -f *.out
+	$(RM) -f *.out .DS_Store
+	$(RM) -rf *.dSYM/ 
