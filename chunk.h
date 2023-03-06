@@ -4,22 +4,25 @@
 
 
 #include "common.h"
+#include "value.h"
 //Define opcode -> operation code
 //return the kind of opertion that the interpeter is dealing with -> add, subtract etc.
 typedef enum {
     OP_RETURN,
+    OP_CONSTANT
 } OpCode;
 
 typedef struct {
     int count; //The number of allocated entries of the memory allocated array that are actually in use
     int capacity; //The capacity of the array allocated
     uint8_t *code; //The data code stored along with the bytecode chunk
+    val_array constants;
 } Chunk; //A code is a chunk pf size one byte;
 
 void initChunk (Chunk* chunk); //Define in the header file
 void freeChunk(Chunk* chunk); //Free the chunk
 void writeChunk(Chunk *chunk, uint8_t byte); //append a byte to the chunk
-
+int add_const(Chunk *chunk, Val value); //returns the count
 // When the value of count is less than capacity this means that there is remaining space in the array
 #endif
 

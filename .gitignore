@@ -1,1 +1,4 @@
 *.out
+tags
+compile_command.json
+TAGS
