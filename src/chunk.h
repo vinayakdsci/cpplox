@@ -2,13 +2,14 @@
 #ifndef clox_chunk_h
 #define clox_chunk_h
 
-
 #include "common.h"
 #include "value.h"
+
 //Define opcode -> operation code
 //return the kind of opertion that the interpeter is dealing with -> add, subtract etc.
 typedef enum {
     OP_RETURN,
+    OP_NEGATE,
     OP_CONSTANT
 } OpCode;
 

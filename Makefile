@@ -1,6 +1,6 @@
-CC = gcc-12
+CC = clang
 
-CFLAGS = -g -Wall -Wextra
+CFLAGS = -g -Wall
 
 TARGET = cpplox
 
@@ -10,5 +10,10 @@ $(TARGET):
 	$(CC) $(CFLAGS) -o $(TARGET).out src/*.c
 
 clean:
-	$(RM) -f *.out .DS_Store
+	$(RM) -f .DS_Store
 	$(RM) -rf *.dSYM/ 
+veryclean:
+	$(RM) -f *.out
+	$(RM) -f .DS_Store
+	$(RM) -rf *.dSYM/ 
+	
