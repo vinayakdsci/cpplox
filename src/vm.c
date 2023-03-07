@@ -2,6 +2,7 @@
 #include "common.h"
 #include "debug.h"
 #include "vm.h"
+#include "compiler.h"
 
 /* Global decl */
 VM vm;
@@ -38,6 +39,13 @@ static interpreted_result run (void) {
 #define READ_BYTE() (*vm.ip++)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
 
+#define BIN_OP(op) \
+    do { \
+        Val b = pop(); \
+        Val a = pop();  \
+        push(a op b);  \
+    } while(false)  //Execute only once
+
     for (;;) {
         uint8_t instruction;
         switch(instruction = READ_BYTE()) {
@@ -49,7 +57,11 @@ static interpreted_result run (void) {
                                   break;
                               }
 
-            case OP_NEGATE:    push(-pop()); break;
+            case OP_NEGATE:     push(-pop()); break;
+            case OP_ADD:        BIN_OP(+);    break;
+            case OP_SUBTRACT:   BIN_OP(-);    break;
+            case OP_MULTIPLY:   BIN_OP(*);    break;
+            case OP_DIVIDE:     BIN_OP(/);    break;
 
             case OP_RETURN: { 
                                 print_val(pop()); 
@@ -60,12 +72,15 @@ static interpreted_result run (void) {
     }
 #undef READ_BYTE
 #undef READ_CONSTANT
+#undef BIN_OP
 }
 
 
-interpreted_result interpret(Chunk *chunk) {
-    vm.chunk = chunk;
-    vm.ip = vm.chunk->code;
-    return run();
+interpreted_result interpret(const char *source) {
+    /* vm.chunk = chunk; */
+    /* vm.ip = vm.chunk->code; */
+    /* return run(); */
+    compile(source);
+    return INTERPRET_OK;
 }
 
