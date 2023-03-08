@@ -21,7 +21,7 @@ typedef enum {
 
 void init_vm();
 void free_vm();
-interpreted_result interpret(Chunk *chunk);
+interpreted_result interpret(const char *source);
 
 void push(Val value);
 Val pop();

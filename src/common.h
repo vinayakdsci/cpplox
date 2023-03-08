@@ -4,16 +4,21 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
-#ifdef DEBUG_TRACE_EXECUTION
-    printf("       ");
-    for (Val *slot = vm.stack; slot < vm.stack_top; slot++) {
-        printf("{ ");
-        print_val(*slot);
-        printf(" }");
-    }
-    printf("\n");
-    disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code));
-//Use bool, size_t, uint8_t
-#endif
+/* #ifdef DEBUG_TRACE_EXECUTION */
+/* int debug() { */
+/*     printf("       "); */
+/*     for (Val *slot = vm.stack; slot < vm.stack_top; slot++) { */
+/*         printf("{ "); */
+/*         print_val(*slot); */
+/*         printf(" }"); */
+/*     } */
+/*     printf("\n"); */
+/*     return disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code)); */ 
+/* } */
+/* int x = debug(); */
+/* print(x); */
+/* //Use bool, size_t, uint8_t */
+/* #endif */
 #endif

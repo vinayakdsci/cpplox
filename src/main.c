@@ -13,8 +13,8 @@
 static void repl() {
     char line[1024];
     for (;;) {
-        printf("CCPLOX> ");
-        if(fgets(line, sizeof(line), stdin)){
+        printf("CPPLOX> ");
+        if(!fgets(line, sizeof(line), stdin)){
             printf("\n");
             break;
         }
@@ -22,27 +22,11 @@ static void repl() {
     }
 }
 
-
-static void run_file(const char *path){
-    char *source = read_file(path);
-    interpreted_result res = interpret(source);
-    free(source);
-
-    if(res == INTERPRET_COMPILER_ERROR){
-        printf("COMPILE ERROR\n");
-        exit(65);
-    }
-    if(res == INTERPRET_RUNTIME_ERROR) {
-        printf("RUNTIME ERROR\n");
-        exit(70);
-    }
-}
-
 static char *read_file(const char *path) {
-    FILE *file = fopem(path, "rb");
+    FILE *file = fopen(path, "rb");
     //Manual check for errors, no exceptions
     if(file == NULL) {
-        frpintf(stderr, "Coudl not open \"%s\".\n", path);
+        fprintf(stderr, "Could not open \"%s\".\n", path);
         exit(74);
     }
 
@@ -52,7 +36,7 @@ static char *read_file(const char *path) {
     char *buffer = (char*)malloc(file_size + 1);
     /* Manually check for memory errors */
     if(buffer == NULL) {
-        fprintf(stderr, "No enough memeory to read buffer at \"%s\".\n",path);
+        fprintf(stderr, "Not enough memeory to read buffer at \"%s\".\n",path);
         exit(74);
     }
 
@@ -68,7 +52,27 @@ static char *read_file(const char *path) {
 }
 
 
+
+
+
+static void run_file(const char *path){
+    char *source = read_file(path);
+    interpreted_result res = interpret(source);
+    free(source);
+
+    if(res == INTERPRET_COMPILE_ERROR){
+        printf("COMPILE ERROR\n");
+        exit(65);
+    }
+    if(res == INTERPRET_RUNTIME_ERROR) {
+        printf("RUNTIME ERROR\n");
+        exit(70);
+    }
+}
+
+
 int main (int argc, const char *argv[]) {
+
     init_vm();
     //REPL
     if(argc == 1) {
@@ -78,11 +82,11 @@ int main (int argc, const char *argv[]) {
         run_file(argv[1]);
     }
     else {
-        fprintf(stderr, "USAGE: ./pplox [path]\n");
+        fprintf(stderr, "USAGE: ./cpplox [path]\n");
         exit(64);
     }
-    
+
     free_vm();
-    freeChunk(&chunk);
+    /* freeChunk(&chunk); */
     return 0;
 }

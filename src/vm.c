@@ -1,8 +1,8 @@
-#include <stdio.h>
-#include "common.h"
-#include "debug.h"
 #include "vm.h"
+#include "common.h"
 #include "compiler.h"
+#include "debug.h"
+#include <stdio.h>
 
 /* Global decl */
 VM vm;
@@ -50,7 +50,7 @@ static interpreted_result run (void) {
         uint8_t instruction;
         switch(instruction = READ_BYTE()) {
             case OP_CONSTANT: {
-                                  Val constant = READ_CONSTANT();
+                                  double constant = READ_CONSTANT();
                                   print_val(constant);
                                   printf("\n");
                                   push(constant);
@@ -76,11 +76,37 @@ static interpreted_result run (void) {
 }
 
 
+#ifdef DEBUG_TRACE_EXECUTION
+#include <stdio.h>
+void debug(){
+    printf("       ");
+    for (Val *slot = vm.stack; slot < vm.stack_top; slot++) {
+        printf("{ ");
+        print_val(*slot);
+        printf(" }");
+    }
+    printf("\n");
+    printf("%4d", disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code))); 
+}
+//Use bool, size_t, uint8_t
+#endif
+
+
 interpreted_result interpret(const char *source) {
-    /* vm.chunk = chunk; */
-    /* vm.ip = vm.chunk->code; */
     /* return run(); */
-    compile(source);
-    return INTERPRET_OK;
+    Chunk chunk;
+    initChunk(&chunk);
+
+    if(!compile(source, &chunk)) {
+        freeChunk(&chunk);
+        return INTERPRET_COMPILE_ERROR;
+    }
+
+    vm.chunk = &chunk;
+    vm.ip = vm.chunk->code;
+    debug();
+    interpreted_result result = run();
+    freeChunk(&chunk);
+    return result;
 }
 
