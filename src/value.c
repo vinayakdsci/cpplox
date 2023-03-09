@@ -20,7 +20,7 @@ void write_val_array(val_array *array, Val value){
 }
 
 void print_val(Val value){
-    printf("%g", value);
+    printf("%g", AS_NUMBER(value));
 }
 
 

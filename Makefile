@@ -1,4 +1,4 @@
-CC = gcc-12
+CC = clang
 
 CFLAGS = -g -Wall
 
@@ -7,7 +7,7 @@ TARGET = cpplox
 all: $(TARGET)
 
 $(TARGET):
-	$(CC) $(CFLAGS) -DDEBUG_TRACE_EXECUTION -o $(TARGET).out src/*.c
+	$(CC) $(CFLAGS) -o $(TARGET).out src/*.c
 
 clean:
 	$(RM) -f .DS_Store

@@ -47,6 +47,16 @@ static interpreted_result run (void) {
     } while(false)  //Execute only once
 
     for (;;) {
+#ifdef DEBUG_TRACE_EXECUTION
+        printf("       ");
+        for (Val *slot = vm.stack; slot < vm.stack_top; slot++) {
+            printf("{ ");
+            print_val(*slot);
+            printf(" }");
+        }
+        printf("\n");
+        printf("%4d", disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code))); 
+#endif
         uint8_t instruction;
         switch(instruction = READ_BYTE()) {
             case OP_CONSTANT: {
@@ -75,23 +85,6 @@ static interpreted_result run (void) {
 #undef BIN_OP
 }
 
-
-#ifdef DEBUG_TRACE_EXECUTION
-#include <stdio.h>
-void debug(){
-    printf("       ");
-    for (Val *slot = vm.stack; slot < vm.stack_top; slot++) {
-        printf("{ ");
-        print_val(*slot);
-        printf(" }");
-    }
-    printf("\n");
-    printf("%4d", disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code))); 
-}
-//Use bool, size_t, uint8_t
-#endif
-
-
 interpreted_result interpret(const char *source) {
     /* return run(); */
     Chunk chunk;
@@ -104,7 +97,7 @@ interpreted_result interpret(const char *source) {
 
     vm.chunk = &chunk;
     vm.ip = vm.chunk->code;
-    debug();
+    /* debug(); */
     interpreted_result result = run();
     freeChunk(&chunk);
     return result;

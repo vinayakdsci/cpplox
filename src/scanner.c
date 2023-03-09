@@ -22,13 +22,14 @@ void init_scanner(const char *source) {
 static bool is_at_end() {
     return *scanner_object.current == '\0';
 }
+
 static char advance() {
     scanner_object.current++;
     return scanner_object.current[-1];
     //Also written as scanner_object[-1].
 }
 static char peek() {
-    return scanner_object.current[0];
+    return *scanner_object.current;
 }
 static char peek_next() {
     if(is_at_end()) return '\0';
@@ -36,7 +37,7 @@ static char peek_next() {
 }
 static bool match(char c) {
     if(is_at_end()) return false;
-    if(peek() != c) return false;
+    if(*scanner_object.current != c) return false;
 
     scanner_object.current++;
     return true;
