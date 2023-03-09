@@ -113,7 +113,7 @@ static void emit_return() {
     emit_byte(OP_RETURN);
 }
 
-static uint8_t make_constant(double value) {
+static uint8_t make_constant(Val value) {
     int constant = add_const(current_chunk(), value);
     if(constant > UINT8_MAX) {
         error("byte overflow in chunk");
@@ -123,7 +123,7 @@ static uint8_t make_constant(double value) {
     return (uint8_t)constant;
 }
 
-static void emit_constant(double value) {
+static void emit_constant(Val value) {
     emit_two_bytes(OP_CONSTANT, make_constant(value));
 }
 
@@ -182,7 +182,7 @@ static void unary() {
     token_type op_type = parser_obj.previous.type;
 
     /* compile */
-    expression();
+    /* expression(); */
 
     parse_precedence(PREC_UNARY);
 
@@ -244,7 +244,7 @@ static void parse_precedence(precedence precede){
     advance();
     parse_fun prefix_rule = get_rule(parser_obj.previous.type)->prefix;
     if(prefix_rule == NULL){
-        error("expected expression");
+        error("prefix error: expected expression");
         return;
     }
 
@@ -286,7 +286,7 @@ bool compile(const char *source, Chunk *chunk) {
     expression();
     consume(TOKEN_EOF, "Expected end of expression.");
     wrap_compiler();
-    return parser_obj.had_error;
+    return !parser_obj.had_error;
 
 }
 

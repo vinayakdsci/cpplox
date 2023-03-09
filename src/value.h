@@ -25,7 +25,7 @@ typedef enum {
  * times, and reinterpret them through different pathways. Also, it provides
  * low level memory access, so be careful and don't mess things up..
  * */
-typedef {
+typedef struct{
     value_type type;
     union {
         bool boolean;
@@ -39,11 +39,11 @@ typedef {
  * */
 #define IS_BOOL(value)    ((value).type == VAL_BOOL)
 #define IS_NIL(value)     ((value).type == VAL_NIL)
-#define IS_NUMBER(value)  ((Value).type == VAL_NUMBER)
+#define IS_NUMBER(value)  ((value).type == VAL_NUMBER)
 
 /* unpack the union */
-#define AS_BOOL(value)     ((value).as.boolean);
-#define AS_NUMBER(value)   ((value).as.number);
+#define AS_BOOL(value)     ((value).as.boolean)
+#define AS_NUMBER(value)   ((value).as.number)
 /* convert C's static types to dynamic types in cpplox */
 #define BOOL_VAL(value)    ((Val){VAL_BOOL,   {.boolean = value}})
 #define NIL_VAL            ((Val){VAL_NIL,    {.number = 0}})

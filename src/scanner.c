@@ -64,7 +64,7 @@ static token error_token(const char *message){
     token token_obj;
     token_obj.type = TOKEN_ERROR;
     token_obj.start = message;
-    token_obj.length = strlen(message);
+    token_obj.length = (int)strlen(message);
     token_obj.line = scanner_object.line;
     return token_obj;
 }
@@ -148,7 +148,7 @@ static token identifier() {
 
 static void skip_whitespace() {
     for(;;){
-        char cur = *scanner_object.current;
+        char cur = peek();
         switch(cur) {
             case ' ':
             case '\r':

@@ -1,8 +1,12 @@
+#include <stdio.h>
+#include <stdarg.h>
+
+
+
 #include "vm.h"
 #include "common.h"
 #include "compiler.h"
 #include "debug.h"
-#include <stdio.h>
 
 /* Global decl */
 VM vm;
@@ -11,14 +15,17 @@ static void reset_stack() {
     vm.stack_top = vm.stack;    //set stack_top to the beginning of the array to indecate it is empty
 }
 
-void push(Val value) {
-    *vm.stack_top = value;
-    vm.stack_top++;
-}
-
-Val pop() {
-    vm.stack_top--;
-    return *vm.stack_top;
+/* a Variadic function */
+static void runtime_error(const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+    fputs("\n", stderr);
+    size_t instruction = vm.ip - vm.chunk->code - 1;
+    int lines = vm.chunk->lines[instruction];
+    fprintf(stderr, "line [%d] in script\n", lines);
+    reset_stack();
 }
 
 /*
@@ -34,50 +41,84 @@ void free_vm() {
 
 }
 
+void push(Val value) {
+    *vm.stack_top = value;
+    vm.stack_top++;
+}
+
+Val pop() {
+    vm.stack_top--;
+    return *vm.stack_top;
+}
+
+
+static Val peek(int distance) {
+    /* returns how far from the stack top to search. 
+     * 0 is the top, -1 is the second down, and so on
+     * */
+    return vm.stack_top[-1 - distance];
+}
 
 static interpreted_result run (void) {
 #define READ_BYTE() (*vm.ip++)
+
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
 
-#define BIN_OP(op) \
+#define BIN_OP(v, op)  \
     do { \
-        Val b = pop(); \
-        Val a = pop();  \
-        push(a op b);  \
+        if(!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
+            runtime_error("operands must be numbers."); \
+            return INTERPRET_RUNTIME_ERROR; \
+        } \
+        double b = AS_NUMBER(pop()); \
+        double a = AS_NUMBER(pop());  \
+        push(v(a op b));  \
     } while(false)  //Execute only once
+
+
 
     for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
         printf("       ");
         for (Val *slot = vm.stack; slot < vm.stack_top; slot++) {
-            printf("{ ");
+            printf("[ ");
             print_val(*slot);
-            printf(" }");
+            printf(" ]");
         }
         printf("\n");
-        printf("%4d", disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code))); 
+        disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code)); 
 #endif
         uint8_t instruction;
         switch(instruction = READ_BYTE()) {
             case OP_CONSTANT: {
-                                  double constant = READ_CONSTANT();
-                                  print_val(constant);
-                                  printf("\n");
+                                  Val constant = READ_CONSTANT();
+                                  /* print_val(constant); */
+                                  /* printf("inside op constant"); */
                                   push(constant);
                                   break;
                               }
 
-            case OP_NEGATE:     push(-pop()); break;
-            case OP_ADD:        BIN_OP(+);    break;
-            case OP_SUBTRACT:   BIN_OP(-);    break;
-            case OP_MULTIPLY:   BIN_OP(*);    break;
-            case OP_DIVIDE:     BIN_OP(/);    break;
-
-            case OP_RETURN: { 
+            case OP_ADD:        BIN_OP(NUMBER_VAL, +);    break;
+            case OP_SUBTRACT:   BIN_OP(NUMBER_VAL, -);    break;
+            case OP_MULTIPLY:   BIN_OP(NUMBER_VAL, *);    break;
+            case OP_DIVIDE:     BIN_OP(NUMBER_VAL, /);    break;
+            case OP_NEGATE:  
+                                /* First check if the element at the top
+                                 * of the stack is a number.
+                                 * if not, runtime error
+                                 * else, keep going
+                                 * */
+                                if(!IS_NUMBER(peek(0))) {
+                                    runtime_error("Operand must be a number.");
+                                    return INTERPRET_RUNTIME_ERROR;
+                                }
+                                push(NUMBER_VAL(-AS_NUMBER(pop())));
+                                break;
+            case OP_RETURN:  
                                 print_val(pop()); 
                                 printf("\n");
                                 return INTERPRET_OK; 
-                            }
+
         }
     }
 #undef READ_BYTE
