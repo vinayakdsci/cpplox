@@ -61,7 +61,7 @@ static void error_at(token *tok, const char *message) {
         fprintf(stderr, "reached end of file while parsing");
     }
     else if(tok->type == TOKEN_ERROR){
-        printf("TOKEN_ERROR");
+        /* printf("TOKEN_ERROR"); */
     }
     else {
         fprintf(stderr, "at %.*s", tok->length, tok->start);
@@ -161,7 +161,7 @@ static void binary() {
 
 static void grouping() {
     /* group(associate) by brackets */
-    expression(); //compile the expr
+    /* expression(); //compile the expr */
     consume(TOKEN_RIGHT_PAREN, "expected ')' after expression.");
 }
 
