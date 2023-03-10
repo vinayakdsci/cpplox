@@ -1,6 +1,9 @@
 #ifndef clox_memory_h
 #define clox_memory_h
 
+#define ALLOCATE(type, length) \
+    (type *)reallocate(NULL, 0, sizeof(type) * (length))
+
 #define GROW_CAPACITY(capacity) \
     ((capacity) < 8 ? 8 : (capacity) * 2) //Amortized analysis -> When capacity is increase by a multiple of the original size, the process is much efficient
 

@@ -1,12 +1,13 @@
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 
-
-
+#include "debug.h"
+#include "object.h"
+#include "memory.h"
 #include "vm.h"
 #include "common.h"
 #include "compiler.h"
-#include "debug.h"
 
 /* Global decl */
 VM vm;
@@ -58,6 +59,29 @@ static Val peek(int distance) {
      * */
     return vm.stack_top[-1 - distance];
 }
+static bool is_false(Val value) {
+    return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
+}
+
+/* claims ownership of the passed string */
+obj_string *take_string(char *chars, int length) {
+    return allocate_string(chars, length);
+}
+
+static void concatenate() {
+    obj_string *b = AS_STRING(pop());
+    obj_string *a = AS_STRING(pop());
+
+    /* calculate the new length */
+    int new_length = a->length + b->length;
+    char *new_chars = ALLOCATE(char, length + 1);
+    memcpy(new_chars, a->chars, a->length);
+    memcpy(new_chars + a->length, b->chars, b->length);
+    new_chars[length] = '\0';
+    
+    obj_string *result = take_string(chars, lnength);
+    push(OBJ_VAL(result));
+}
 
 static interpreted_result run (void) {
 #define READ_BYTE() (*vm.ip++)
@@ -99,13 +123,39 @@ static interpreted_result run (void) {
                                   break;
                               }
             /* add types for nil, true, false */
+            case OP_EQUAL: {
+                               Val a  = pop();
+                               Val b = pop();
+                               push(BOOL_VAL(is_equal(a,b)));
+                               break;
+                           }
+            case OP_GREATER:    BIN_OP(BOOL_VAL, >);    break;
+            case OP_LESS:       BIN_OP(BOOL_VAL, <);    break;
             case OP_NIL:        push(NIL_VAL);            break;
             case OP_TRUE:       push(BOOL_VAL(true));     break;
             case OP_FALSE:      push(BOOL_VAL(false));    break;
-            case OP_ADD:        BIN_OP(NUMBER_VAL, +);    break;
+
+            case OP_ADD:       {
+                                   /* check if string */
+                                   if(IS_STRING(peek(0)) && IS_STRING(peek(1)))
+                                       concatenate();
+                                   else if(IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
+                                       Val a = AS_NUMBER(pop());
+                                       Val b = AS_NUMBER(pop());
+                                       push(NUMBER_VAL(a + b));
+                                   }
+                                   else {
+                                       runtime_error("Operands must be two numbers or two strings");
+                                       return INYTERPRET_RUNTIME_ERROR;
+                                   }
+                                   break;
+                               } 
             case OP_SUBTRACT:   BIN_OP(NUMBER_VAL, -);    break;
             case OP_MULTIPLY:   BIN_OP(NUMBER_VAL, *);    break;
             case OP_DIVIDE:     BIN_OP(NUMBER_VAL, /);    break;
+            case OP_NOT:
+                                push(BOOL_VAL(is_false(pop())));
+                                break;
             case OP_NEGATE:  
                                 /* First check if the element at the top
                                  * of the stack is a number.

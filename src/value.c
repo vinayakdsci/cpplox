@@ -1,7 +1,9 @@
 #include <stdio.h>
+#include <string.h>
 
+#include "object.h"
 #include "memory.h"
-#include "value.h"
+/* #include "value.h" */
 
 
 void init_val_array(val_array *array) {
@@ -26,6 +28,27 @@ void print_val(Val value){
             break;
         case VAL_NIL: printf("nil"); break;
         case VAL_NUMBER: printf("%g", AS_NUMBER(value)); break;
+        case VAL_OBJ: print_object(value); break;
+    }
+}
+
+bool is_equal(Val a, Val b) {
+    if(a.type != b.type) return false;
+
+    switch(a.type) {
+        case VAL_BOOL: return AS_BOOL(a) == AS_BOOL(b);
+        case VAL_NIL:  return true;
+        case VAL_NUMBER: return AS_NUMBER(a) == AS_NUMBER(b);
+                         /* handle equality of strings */
+        case VAL_OBJ: {
+                          obj_string *string_one = AS_STRING(a);
+                          obj_string *string_two = AS_STRING(b);
+                          return (string_one->length = string_two->length &&
+                              memcmp(string_one->chars,
+                                     string_two ->chars, 
+                                     string_one->length) == 0);
+                      } 
+        default: return false;
     }
 }
 
