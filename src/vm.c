@@ -67,6 +67,7 @@ static interpreted_result run (void) {
 #define BIN_OP(v, op)  \
     do { \
         if(!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
+            printf("peek() = %d , preek(1) = %d", IS_NUMBER(peek(0)), IS_NUMBER(peek(1))); \
             runtime_error("operands must be numbers."); \
             return INTERPRET_RUNTIME_ERROR; \
         } \
@@ -97,7 +98,10 @@ static interpreted_result run (void) {
                                   push(constant);
                                   break;
                               }
-
+            /* add types for nil, true, false */
+            case OP_NIL:        push(NIL_VAL);            break;
+            case OP_TRUE:       push(BOOL_VAL(true));     break;
+            case OP_FALSE:      push(BOOL_VAL(false));    break;
             case OP_ADD:        BIN_OP(NUMBER_VAL, +);    break;
             case OP_SUBTRACT:   BIN_OP(NUMBER_VAL, -);    break;
             case OP_MULTIPLY:   BIN_OP(NUMBER_VAL, *);    break;

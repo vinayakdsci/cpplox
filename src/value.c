@@ -20,7 +20,13 @@ void write_val_array(val_array *array, Val value){
 }
 
 void print_val(Val value){
-    printf("%g", AS_NUMBER(value));
+    switch(value.type) {
+        case VAL_BOOL :
+            printf(AS_BOOL(value) ? "true" : "false");
+            break;
+        case VAL_NIL: printf("nil"); break;
+        case VAL_NUMBER: printf("%g", AS_NUMBER(value)); break;
+    }
 }
 
 
