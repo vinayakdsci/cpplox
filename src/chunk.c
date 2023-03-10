@@ -1,6 +1,6 @@
-#include <stdlib.h>
 #include "chunk.h"
 #include "memory.h"
+#include <stdlib.h>
 /* #include "value.h" */
 /* #include <stdio.h> */
 

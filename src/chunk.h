@@ -1,4 +1,4 @@
-//Chunks are essentially Sequences of bytecode
+// Chunks are essentially Sequences of bytecode
 #ifndef clox_chunk_h
 #define clox_chunk_h
 

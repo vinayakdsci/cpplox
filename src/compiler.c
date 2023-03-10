@@ -1,8 +1,8 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include "compiler.h"
 #include "common.h"
 #include "scanner.h"
-#include "compiler.h"
+#include <stdio.h>
+#include <stdlib.h>
 /* #include "vm.h" */
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
@@ -258,8 +258,6 @@ parse_rule rules[] = {
     [TOKEN_EOF]             = {NULL, NULL, PREC_NONE}
 };
 
-
-
 static void parse_precedence(precedence precede){
     /* parse prefix expr */
     /* printf("%d", parser_obj.previous.type); */
@@ -286,7 +284,6 @@ static void parse_precedence(precedence precede){
     }
 }
 
-
 static parse_rule *get_rule(token_type type) {
     return &rules[type];
 }
@@ -294,9 +291,6 @@ static parse_rule *get_rule(token_type type) {
 static void expression() {
     parse_precedence(PREC_ASSIGNMENT);
 }
-
-
-
 
 bool compile(const char *source, Chunk *chunk) {
     init_scanner(source);

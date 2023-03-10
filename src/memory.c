@@ -43,5 +43,6 @@ void free_objects() {
         object = next;
         counter++;
     }
-    printf("Freed %d objects from the heap\n", counter);
+    if(counter > 0)
+        printf("Freed %d objects from the heap\n", counter);
 }
