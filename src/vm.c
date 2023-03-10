@@ -35,11 +35,13 @@ static void runtime_error(const char *format, ...) {
 
 void init_vm() {
     reset_stack();
+    /*No objects on the heap at the moment*/
+    vm.objects = NULL;
 }
 
 
 void free_vm() {
-
+    free_objects();
 }
 
 void push(Val value) {
@@ -63,23 +65,18 @@ static bool is_false(Val value) {
     return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
-/* claims ownership of the passed string */
-obj_string *take_string(char *chars, int length) {
-    return allocate_string(chars, length);
-}
-
 static void concatenate() {
     obj_string *b = AS_STRING(pop());
     obj_string *a = AS_STRING(pop());
 
     /* calculate the new length */
     int new_length = a->length + b->length;
-    char *new_chars = ALLOCATE(char, length + 1);
+    char *new_chars = ALLOCATE(char, new_length + 1);
     memcpy(new_chars, a->chars, a->length);
     memcpy(new_chars + a->length, b->chars, b->length);
-    new_chars[length] = '\0';
+    new_chars[new_length] = '\0';
     
-    obj_string *result = take_string(chars, lnength);
+    obj_string *result = take_string(new_chars, new_length);
     push(OBJ_VAL(result));
 }
 
@@ -137,16 +134,18 @@ static interpreted_result run (void) {
 
             case OP_ADD:       {
                                    /* check if string */
-                                   if(IS_STRING(peek(0)) && IS_STRING(peek(1)))
+                                   if(IS_STRING(peek(0)) && IS_STRING(peek(1))) {
                                        concatenate();
+                                   }
                                    else if(IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
-                                       Val a = AS_NUMBER(pop());
-                                       Val b = AS_NUMBER(pop());
+                                       double a = AS_NUMBER(pop());
+                                       double b = AS_NUMBER(pop());
+
                                        push(NUMBER_VAL(a + b));
                                    }
                                    else {
                                        runtime_error("Operands must be two numbers or two strings");
-                                       return INYTERPRET_RUNTIME_ERROR;
+                                       return INTERPRET_RUNTIME_ERROR;
                                    }
                                    break;
                                } 
@@ -184,6 +183,7 @@ interpreted_result interpret(const char *source) {
     /* return run(); */
     Chunk chunk;
     initChunk(&chunk);
+
 
     if(!compile(source, &chunk)) {
         freeChunk(&chunk);

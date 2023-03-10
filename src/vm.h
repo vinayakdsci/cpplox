@@ -11,6 +11,8 @@ typedef struct {
     uint8_t *ip;
     Val stack[STACK_MAX]; //My stack based proglang!
     Val *stack_top;
+    /* poin tot he head of the object heap */
+    Obj *objects;
 } VM;
 
 typedef enum {
@@ -18,6 +20,9 @@ typedef enum {
     INTERPRET_COMPILE_ERROR,
     INTERPRET_RUNTIME_ERROR
 } interpreted_result;
+
+/* externally expose the vm module */
+extern VM vm;
 
 void init_vm();
 void free_vm();

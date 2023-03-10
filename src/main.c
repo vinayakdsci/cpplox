@@ -12,12 +12,18 @@
 
 static void repl() {
     char line[1024];
+    printf("Press ^D or enter 'exit' to exit\n");
     for (;;) {
         printf("λ> ");
         if(!fgets(line, sizeof(line), stdin)){
             printf("\n");
             break;
         }
+
+        char *exit = "exit";
+        if(strncmp(exit, line, 4) == 0)
+            return;
+
         interpret(line);
     }
 }
