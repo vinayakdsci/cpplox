@@ -86,11 +86,9 @@ static void concatenate() {
 
 static interpreted_result run (void) {
 #define READ_BYTE() (*vm.ip++)
-
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
     /* read a single byte constant from the bytecode chunk */
 #define READ_STRING()   AS_STRING(READ_CONSTANT())
-
 #define BIN_OP(v, op)  \
     do { \
         if(!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
@@ -134,7 +132,26 @@ static interpreted_result run (void) {
                                     pop();
                                     break;
                                 }
-
+            case OP_GET_GLOBAL: {
+                                    obj_string *name = READ_STRING();
+                                    Val value;
+                                    if(!get_table(&vm.globals, name, &value)) {
+                                        /* if you can't find the var, it's undefined */
+                                        runtime_error("undefined variable '%s'.");
+                                        return INTERPRET_RUNTIME_ERROR;
+                                    }
+                                    push(value);
+                                    break;
+                                }
+            case OP_SET_GLOBAL: {
+                                    /* lookup in the constant table */
+                                    obj_string *name = READ_STRING();
+                                    if(set_table(&vm.globals, name, peek(0))) {
+                                        delete_table(&vm.globals, name);
+                                        return INTERPRET_RUNTIME_ERROR;
+                                    }
+                                    break;
+                                }
             /* add types for nil, true, false */
             case OP_EQUAL: {
                                Val a  = pop();
@@ -160,7 +177,7 @@ static interpreted_result run (void) {
                                        push(NUMBER_VAL(a + b));
                                    }
                                    else {
-                                       runtime_error("Operands must be two numbers or two strings");
+                                       runtime_error("Operands to '+' must be two numbers or two strings");
                                        return INTERPRET_RUNTIME_ERROR;
                                    }
                                    break;
@@ -184,7 +201,7 @@ static interpreted_result run (void) {
                                 push(NUMBER_VAL(-AS_NUMBER(pop())));
                                 break;
             case OP_PRINT:      {print_val(pop()); printf("\n"); break;}
-            case OP_POP:        pop(); break;
+            case OP_POP:        printf("Use 'write' keyword to write to stdout\n"); pop(); break;
             case OP_RETURN:  
                                 //simply exit, as print has been intro'd
                                 return INTERPRET_OK; 

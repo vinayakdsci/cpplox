@@ -110,11 +110,17 @@ static token_type identifier_type() {
         case 'o' : return check_key(1, 1, "r", TOKEN_OR);
         case 'n' : return check_key(1, 2, "il", TOKEN_NIL);
         case 'i' : return check_key(1, 1, "f", TOKEN_IF);
-        case 'p' : return check_key(1, 4, "rint", TOKEN_PRINT);
+        /* case 'p' : return check_key(1, 4, "rint", TOKEN_PRINT); */
         case 'v' : return check_key(1, 2, "ar", TOKEN_VAR);
         case 'r' : return check_key(1, 5, "eturn", TOKEN_RETURN);
         case 's' : return check_key(1, 4, "uper", TOKEN_SUPER);
-        case 'w' : return check_key(1, 4, "hile", TOKEN_WHILE);
+        case 'w' : if(scanner_object.current - scanner_object.start > 1) {
+                       switch(scanner_object.start[1]) {
+                           case 'r' : return check_key(2, 3, "ite", TOKEN_PRINT);
+                           case 'h':  return check_key(2, 3, "ile", TOKEN_WHILE);
+                       }
+                   }
+                   break;
         case 'f' :
                    if (scanner_object.current - scanner_object.start > 1) {
                        switch (scanner_object.start[1]) {

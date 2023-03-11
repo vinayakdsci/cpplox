@@ -12,7 +12,7 @@
 
 static void repl() {
     char line[1024];
-    printf("Press ^D or enter 'exit' to exit\n");
+    printf("Press ^D or type 'exit' to exit\n");
     for (;;) {
         printf("λ> ");
         if(!fgets(line, sizeof(line), stdin)){

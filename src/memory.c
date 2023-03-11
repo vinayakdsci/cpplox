@@ -45,6 +45,8 @@ void free_objects() {
         object = next;
         counter++;
     }
+#ifdef DEBUG_TRACE_EXECUTION
     if(counter > 0)
-        printf("Freed %d objects from the heap\n", counter);
+        printf("\nfreed %d allocated objects before exiting\n", counter);
+#endif
 }

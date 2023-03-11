@@ -31,7 +31,7 @@ typedef enum {
 } precedence;
 
 /* handling function pointers kind of sucks, so typedef */
-typedef void (*parse_fun)(void);
+typedef void (*parse_fun)(bool assignable);
 
 typedef struct {
     parse_fun prefix;
@@ -138,7 +138,7 @@ static parse_rule *get_rule(token_type type);
 static void parse_precedence(precedence precede);
 
 /* parse infix expression */
-static void binary() {
+static void binary(bool assignable) {
     token_type op_type = parser_obj.previous.type;
     /* printf("%d", opt_type); */
     parse_rule *rule = get_rule(op_type);
@@ -160,7 +160,7 @@ static void binary() {
 }
 
 /* compile function for true,false,nil */
-static void literal() {
+static void literal(bool assignable) {
     switch(parser_obj.previous.type) {
         case TOKEN_FALSE: emit_byte(OP_FALSE); break;
         case TOKEN_TRUE:  emit_byte(OP_TRUE); break;
@@ -178,7 +178,7 @@ static void consume(token_type type, const char *message) {
     error(message);
 }
 
-static void grouping() {
+static void grouping(bool assignable) {
     /* group(associate) by brackets */
     expression(); //compile the expr
     consume(TOKEN_RIGHT_PAREN, "expected ')' after expression.");
@@ -186,19 +186,58 @@ static void grouping() {
 
 
 
-static void number() {
+static void number(bool assignable) {
     double value = strtod(parser_obj.previous.start, NULL);
     emit_constant(NUMBER_VAL(value));
 }
 
-static void string() {
+static void string(bool assignable) {
     emit_constant(OBJ_VAL(copy_string(parser_obj.previous.start + 1, parser_obj.previous.length - 2)));
         /* trim the first and the last quote */
 }
+static uint8_t iden_constant(token *tok) {
+    /* add the lexeme of the given token to the chunk constant table 
+     * return the respective index
+     * global vars should be looked up by their names at runtime.
+     * therefore, too avoid storing the whole string into the bytecode stream,
+     * save it in the constant table
+     * */
+    return make_constant(OBJ_VAL(copy_string(tok->start, tok->length)));
+}
 
+static bool check(token_type type) {
+    /* parser already stores this info */
+    return parser_obj.current.type == type;
+}
+
+static bool match(token_type t) {
+
+    /* if we have the required type of token, 
+     * consume it and ret true, else false 
+     * */
+    if(!check(t)) return false;
+    advance();
+    return true;
+}
+
+static void named_var(token name, bool assignable) {
+    /* take the current token, add it's lexeme to the constant table */
+    uint8_t arg = iden_constant(&name);
+    /* handle assignment */
+    if(match(TOKEN_EQUAL) && assignable) {
+        expression();
+        emit_two_bytes(OP_SET_GLOBAL, arg);
+    }
+    else
+        emit_two_bytes(OP_GET_GLOBAL, arg);
+}
+
+static void variable(bool assignable) {
+    named_var(parser_obj.previous, assignable);
+}
 
 /* Unary definitions */
-static void unary() {
+static void unary(bool assignable) {
     /*
      * check if the previous token was a negative sign.
      * if yes, push -x onto the stack. 
@@ -238,7 +277,7 @@ parse_rule rules[] = {
     [TOKEN_GREATER_EQUAL]   = {NULL, binary, PREC_COMPARISON},
     [TOKEN_LESS]            = {NULL, binary, PREC_COMPARISON},
     [TOKEN_LESS_EQUAL]      = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_IDENTIFIER]      = {NULL, NULL, PREC_NONE},
+    [TOKEN_IDENTIFIER]      = {variable, NULL, PREC_NONE},
     [TOKEN_STRING]          = {string, NULL, PREC_NONE},
     [TOKEN_NUMBER]          = {number, NULL, PREC_NONE},
     [TOKEN_AND]             = {NULL, NULL, PREC_NONE},
@@ -270,8 +309,9 @@ static void parse_precedence(precedence precede){
         error("prefix error: expected expression");
         return;
     }
-
-    prefix_rule();
+    /* consume an '=' only in the context of a lower precedence operator */
+    bool assignable = precede <= PREC_ASSIGNMENT;
+    prefix_rule(assignable);
 
     /* infix expr employ precedence 
      * the first token is always a prefix expr from left to right
@@ -283,19 +323,15 @@ static void parse_precedence(precedence precede){
     while(precede <= get_rule(parser_obj.current.type)->prec){
         advance(); //consume the next token
         parse_fun infix_rule = get_rule(parser_obj.previous.type)->infix;
-        infix_rule();
+        infix_rule(assignable);
+    }
+
+    if(assignable && match(TOKEN_EQUAL)){
+        error("invalid assignment.");
     }
 }
 
-static uint8_t iden_constant(token *tok) {
-    /* add the lexeme of the given token to the chunk constant table 
-     * return the respective index
-     * global vars should be looked up by their names at runtime.
-     * therefore, too avoid storing the whole string into the bytecode stream,
-     * save it in the constant table
-     * */
-    return make_constant(OBJ_VAL(copy_string(tok->start, tok->length)));
-}
+
 
 //(TODO) rename iden_constant
 static uint8_t parse_variable(const char *err_message) {
@@ -317,20 +353,6 @@ static void expression() {
     parse_precedence(PREC_ASSIGNMENT);
 }
 
-static bool check(token_type type) {
-    /* parser already stores this info */
-    return parser_obj.current.type == type;
-}
-
-static bool match(token_type t) {
-
-    /* if we have the required type of token, 
-     * consume it and ret true, else false 
-     * */
-    if(!check(t)) return false;
-    advance();
-    return true;
-}
 
 
 
@@ -346,9 +368,9 @@ static void var_declare() {
          * */
         emit_byte(OP_NIL);
 
-     consume(TOKEN_SEMICOLON, "expected ';' after vriable declaration");
+    consume(TOKEN_SEMICOLON, "expected ';' after variable declaration");
 
-     var_define(global_var);
+    var_define(global_var);
 }
 
 static void print_statement() {
