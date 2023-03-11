@@ -287,18 +287,34 @@ static void parse_precedence(precedence precede){
     }
 }
 
+static uint8_t iden_constant(token *tok) {
+    /* add the lexeme of the given token to the chunk constant table 
+     * return the respective index
+     * global vars should be looked up by their names at runtime.
+     * therefore, too avoid storing the whole string into the bytecode stream,
+     * save it in the constant table
+     * */
+    return make_constant(OBJ_VAL(copy_string(tok->start, tok->length)));
+}
+
+//(TODO) rename iden_constant
+static uint8_t parse_variable(const char *err_message) {
+    /* next token must be an identifier */
+    consume(TOKEN_IDENTIFIER, err_message);
+    return iden_constant(&parser_obj.previous);
+}
+
+static void var_define(uint8_t global) {
+    /* recieves the bytecode */ 
+    emit_two_bytes(OP_DEF_GLOBAL, global);
+}
+
 static parse_rule *get_rule(token_type type) {
     return &rules[type];
 }
 
 static void expression() {
     parse_precedence(PREC_ASSIGNMENT);
-}
-
-static void print_statement() {
-    expression();  //compile!
-    consume(TOKEN_SEMICOLON, "expected ';' after value");
-    emit_byte(OP_PRINT);
 }
 
 static bool check(token_type type) {
@@ -318,8 +334,63 @@ static bool match(token_type t) {
 
 
 
+static void var_declare() {
+    uint8_t global_var = parse_variable("expected variable name.");
+
+    if(match(TOKEN_EQUAL)) 
+        expression();  //compile
+    else 
+        /* essentially, when the compiler sees var variable;
+         * it emits a NIL byte, essentially setting it as var variable = nil;
+         * this must set .number as 0
+         * */
+        emit_byte(OP_NIL);
+
+     consume(TOKEN_SEMICOLON, "expected ';' after vriable declaration");
+
+     var_define(global_var);
+}
+
+static void print_statement() {
+    expression();  //compile!
+    consume(TOKEN_SEMICOLON, "expected ';' after value");
+    emit_byte(OP_PRINT);
+}
+
+static void synchronize() {
+    parser_obj.panic = false;
+
+    while(parser_obj.current.type != TOKEN_EOF) {
+        if(parser_obj.previous.type == TOKEN_SEMICOLON)
+            return;
+
+        switch(parser_obj.current.type) {
+            case TOKEN_CLASS:
+            case TOKEN_FUN:
+            case TOKEN_VAR:
+            case TOKEN_FOR:
+            case TOKEN_IF:
+            case TOKEN_WHILE:
+            case TOKEN_PRINT:
+            case TOKEN_RETURN:
+                return;
+            default:
+                /* do nothing */
+                ;
+        }
+        advance();  //keep consuming!
+    }
+}
+
+
+
 static void declaration() {
-    statement();
+    if(match(TOKEN_VAR))
+        var_declare();
+    else
+        statement();
+
+    if(parser_obj.panic) synchronize();
 }
 
 

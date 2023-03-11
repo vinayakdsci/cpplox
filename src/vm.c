@@ -37,11 +37,13 @@ void init_vm() {
     reset_stack();
     /*No objects on the heap at the moment*/
     vm.objects = NULL;
+    init_table(&vm.globals);
     init_table(&vm.strings);
 }
 
 
 void free_vm() {
+    free_table(&vm.globals);
     free_table(&vm.strings);
     free_objects();
 }
@@ -86,6 +88,8 @@ static interpreted_result run (void) {
 #define READ_BYTE() (*vm.ip++)
 
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
+    /* read a single byte constant from the bytecode chunk */
+#define READ_STRING()   AS_STRING(READ_CONSTANT())
 
 #define BIN_OP(v, op)  \
     do { \
@@ -120,6 +124,17 @@ static interpreted_result run (void) {
                                   push(constant);
                                   break;
                               }
+            case OP_DEF_GLOBAL: {
+                                    /* pretty self-explanatory? 
+                                     * do not check to see if the variable is already
+                                     * defined, simply overwrite 
+                                     * */
+                                    obj_string *name = READ_STRING();
+                                    set_table(&vm.globals, name, peek(0));
+                                    pop();
+                                    break;
+                                }
+
             /* add types for nil, true, false */
             case OP_EQUAL: {
                                Val a  = pop();
@@ -178,6 +193,7 @@ static interpreted_result run (void) {
     }
 #undef READ_BYTE
 #undef READ_CONSTANT
+#undef READ_STRING
 #undef BIN_OP
 }
 

@@ -13,6 +13,7 @@ typedef struct {
     Val stack[STACK_MAX]; //My stack based proglang!
     Val *stack_top;
     table strings; //String interning
+    table globals;
     /* point to the head of the object heap */
     Obj *objects;
 } VM;
