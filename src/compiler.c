@@ -89,14 +89,6 @@ static void advance() {
     }
 }
 
-static void consume(token_type type, const char *message) {
-    if(parser_obj.current.type == type){
-        advance();
-        return;
-    }
-
-    error(message);
-}
 
 static void emit_byte(uint8_t byte) {
     /* printf("Written into chunk"); */
@@ -140,6 +132,8 @@ static void wrap_compiler() {
 
 /* forward declare to provide access */
 static void expression();
+static void statement();
+static void declaration();
 static parse_rule *get_rule(token_type type);
 static void parse_precedence(precedence precede);
 
@@ -173,6 +167,15 @@ static void literal() {
         case TOKEN_NIL:   emit_byte(OP_NIL); break;
         default: return;
     }
+}
+
+static void consume(token_type type, const char *message) {
+    if(parser_obj.current.type == type){
+        advance();
+        return;
+    }
+
+    error(message);
 }
 
 static void grouping() {
@@ -292,6 +295,45 @@ static void expression() {
     parse_precedence(PREC_ASSIGNMENT);
 }
 
+static void print_statement() {
+    expression();  //compile!
+    consume(TOKEN_SEMICOLON, "expected ';' after value");
+    emit_byte(OP_PRINT);
+}
+
+static bool check(token_type type) {
+    /* parser already stores this info */
+    return parser_obj.current.type == type;
+}
+
+static bool match(token_type t) {
+
+    /* if we have the required type of token, 
+     * consume it and ret true, else false 
+     * */
+    if(!check(t)) return false;
+    advance();
+    return true;
+}
+
+
+
+static void declaration() {
+    statement();
+}
+
+
+
+static void statement() {
+    if(match(TOKEN_PRINT)) print_statement();
+    else {
+        /* got an expression evaluation */
+        expression();  //compile
+        consume(TOKEN_SEMICOLON, "expected ';' after expression");
+        emit_byte(OP_POP);
+    }
+}
+
 bool compile(const char *source, Chunk *chunk) {
     init_scanner(source);
     compile_chunk = chunk;
@@ -299,8 +341,11 @@ bool compile(const char *source, Chunk *chunk) {
     parser_obj.had_error = false;
     parser_obj.panic = false;
     advance();
-    expression();
-    consume(TOKEN_EOF, "Expected end of expression.");
+
+    while(!match(TOKEN_EOF)) {
+        declaration();
+    }
+
     wrap_compiler();
     return !parser_obj.had_error;
 

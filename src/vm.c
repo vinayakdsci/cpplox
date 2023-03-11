@@ -168,9 +168,10 @@ static interpreted_result run (void) {
                                 }
                                 push(NUMBER_VAL(-AS_NUMBER(pop())));
                                 break;
+            case OP_PRINT:      {print_val(pop()); printf("\n"); break;}
+            case OP_POP:        pop(); break;
             case OP_RETURN:  
-                                print_val(pop()); 
-                                printf("\n");
+                                //simply exit, as print has been intro'd
                                 return INTERPRET_OK; 
 
         }
