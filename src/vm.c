@@ -37,10 +37,12 @@ void init_vm() {
     reset_stack();
     /*No objects on the heap at the moment*/
     vm.objects = NULL;
+    init_table(&vm.strings);
 }
 
 
 void free_vm() {
+    free_table(&vm.strings);
     free_objects();
 }
 
@@ -88,7 +90,6 @@ static interpreted_result run (void) {
 #define BIN_OP(v, op)  \
     do { \
         if(!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
-            printf("peek() = %d , preek(1) = %d", IS_NUMBER(peek(0)), IS_NUMBER(peek(1))); \
             runtime_error("operands must be numbers."); \
             return INTERPRET_RUNTIME_ERROR; \
         } \

@@ -27,7 +27,7 @@ void writeChunk (Chunk* chunk, uint8_t byte, int line){
 
         chunk->code = GROW_ARRAY(uint8_t, chunk->code, oldCapacity, chunk->capacity);
         chunk->lines = GROW_ARRAY(int, chunk->lines, oldCapacity, chunk->capacity);
-    } // This case will be encountered the very first time when the initChuck() func creates a new raw chunk
+    } // This case will be encountered the very first time when the initChunk() func creates a new raw chunk
     chunk->code[chunk->count] = byte;
     chunk->lines[chunk->count] = line;
     chunk->count++;

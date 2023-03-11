@@ -36,18 +36,14 @@ bool is_equal(Val a, Val b) {
     if(a.type != b.type) return false;
 
     switch(a.type) {
-        case VAL_BOOL: return AS_BOOL(a) == AS_BOOL(b);
-        case VAL_NIL:  return true;
+        case VAL_BOOL:   return AS_BOOL(a) == AS_BOOL(b);
+        case VAL_NIL:    return true;
         case VAL_NUMBER: return AS_NUMBER(a) == AS_NUMBER(b);
                          /* handle equality of strings */
-        case VAL_OBJ: {
-                          obj_string *string_one = AS_STRING(a);
-                          obj_string *string_two = AS_STRING(b);
-                          return (string_one->length = string_two->length &&
-                              memcmp(string_one->chars,
-                                     string_two ->chars, 
-                                     string_one->length) == 0);
-                      } 
+        case VAL_OBJ:   
+                         /* print_val(a); */
+                         /* print_val(b); */
+                         return AS_OBJ(a) == AS_OBJ(b);
         default: return false;
     }
 }

@@ -3,6 +3,7 @@
 
 #include "chunk.h"
 #include "value.h"
+#include "table.h"
 
 #define STACK_MAX 256   //Are 8 bytes enough?
 
@@ -11,7 +12,8 @@ typedef struct {
     uint8_t *ip;
     Val stack[STACK_MAX]; //My stack based proglang!
     Val *stack_top;
-    /* poin tot he head of the object heap */
+    table strings; //String interning
+    /* point to the head of the object heap */
     Obj *objects;
 } VM;
 
