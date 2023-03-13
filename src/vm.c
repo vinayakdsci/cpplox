@@ -89,6 +89,8 @@ static interpreted_result run (void) {
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
     /* read a single byte constant from the bytecode chunk */
 #define READ_STRING()   AS_STRING(READ_CONSTANT())
+#define READ_SHORT()   \
+    (vm.ip += 2, (uint16_t)((vm.ip[-2] << 8) | vm.ip[-1]))
 #define BIN_OP(v, op)  \
     do { \
         if(!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
@@ -152,6 +154,16 @@ static interpreted_result run (void) {
                                     }
                                     break;
                                 }
+            case OP_GET_LOCAL: {
+                                   uint8_t slot = READ_BYTE();
+                                   push(vm.stack[slot]);
+                                   break;
+                               }
+            case OP_SET_LOCAL: {
+                                   uint8_t slot = READ_BYTE();
+                                   vm.stack[slot] = peek(0);
+                                   break;
+                               }
             /* add types for nil, true, false */
             case OP_EQUAL: {
                                Val a  = pop();
@@ -164,7 +176,17 @@ static interpreted_result run (void) {
             case OP_NIL:        push(NIL_VAL);            break;
             case OP_TRUE:       push(BOOL_VAL(true));     break;
             case OP_FALSE:      push(BOOL_VAL(false));    break;
-
+            case OP_JUMP_IF_FALSE: {
+                                       uint16_t offset = READ_SHORT();
+                                       if(is_false(peek(0)))
+                                           vm.ip += offset;
+                                       break;
+                                   }
+            case OP_JUMP: {
+                              uint16_t offset = READ_SHORT();
+                              vm.ip += offset;
+                              break;
+                          }
             case OP_ADD:       {
                                    /* check if string */
                                    if(IS_STRING(peek(0)) && IS_STRING(peek(1))) {
@@ -201,7 +223,7 @@ static interpreted_result run (void) {
                                 push(NUMBER_VAL(-AS_NUMBER(pop())));
                                 break;
             case OP_PRINT:      {print_val(pop()); printf("\n"); break;}
-            case OP_POP:        printf("Use 'write' keyword to write to stdout\n"); pop(); break;
+            case OP_POP:        pop(); break;
             case OP_RETURN:  
                                 //simply exit, as print has been intro'd
                                 return INTERPRET_OK; 
@@ -211,6 +233,7 @@ static interpreted_result run (void) {
 #undef READ_BYTE
 #undef READ_CONSTANT
 #undef READ_STRING
+#undef READ_SHORT
 #undef BIN_OP
 }
 

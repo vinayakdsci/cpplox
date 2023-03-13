@@ -3,6 +3,7 @@
 #include "scanner.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 /* #include "vm.h" */
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
@@ -39,8 +40,20 @@ typedef struct {
     precedence prec;
 } parse_rule;
 
+typedef struct {
+    token name;
+    int depth;
+} local;
+
+/* definition for locals allocated on the clox stack */
+typedef struct {
+    local locals[UINT8_COUNT]; //array order analogous to declaration
+    int local_count;
+    int scope_depth;
+} compiler;
 
 parser parser_obj;
+compiler *cur = NULL;
 Chunk *compile_chunk;
 
 static Chunk *current_chunk() {
@@ -117,6 +130,12 @@ static uint8_t make_constant(Val value) {
 
 static void emit_constant(Val value) {
     emit_two_bytes(OP_CONSTANT, make_constant(value));
+}
+
+static void init_compiler(compiler *comp) {
+    comp->local_count = 0;
+    comp->scope_depth = 0;
+    cur = comp;
 }
 
 static void wrap_compiler() {
@@ -205,6 +224,42 @@ static uint8_t iden_constant(token *tok) {
     return make_constant(OBJ_VAL(copy_string(tok->start, tok->length)));
 }
 
+static void add_local(token name) {
+    if(cur->local_count == UINT8_COUNT) {
+        error("too many local variables declared in function");
+        return;
+    }
+
+    local *loc = &cur->locals[cur->local_count++];
+    loc->name = name;
+    loc->depth = -1;
+}
+
+static bool iden_equal(token *a, token *b) {
+    if(a->length != b->length) return false;
+
+    return memcmp(a->start, b->start, a->length) == 0;
+}
+
+static void local_decl() {
+    if(cur->scope_depth == 0) return;
+
+    token *name = &parser_obj.previous;
+
+    /* two variables with the same name not allowed in the same scope */
+    for(int i = cur->local_count - 1; i >= 0; i--) {
+        local *loc = &cur->locals[i];
+        if(loc->depth != -1 && loc->depth < cur->scope_depth){
+            break;
+        }
+        //(TODO) rename
+        if(iden_equal(name, &loc->name)) {
+            error("a variable with the same name already exists in this scope");
+        }
+    }
+    add_local(*name);
+}
+
 static bool check(token_type type) {
     /* parser already stores this info */
     return parser_obj.current.type == type;
@@ -220,16 +275,40 @@ static bool match(token_type t) {
     return true;
 }
 
+static int resolve(compiler *comp, token *name) {
+    for(int i = comp->local_count - 1; i >= 0; i--) {
+        local *l = &comp->locals[i];
+        if(iden_equal(name, &l->name)) {
+            if(l->depth == -1) {
+                error("local var cannot be read in its own initializer.");
+            }
+            return i;
+        }
+    }
+
+    return -1;
+}
+
 static void named_var(token name, bool assignable) {
     /* take the current token, add it's lexeme to the constant table */
-    uint8_t arg = iden_constant(&name);
+    uint8_t get_opcode, set_opcode;
+    int arg = resolve(cur, &name);
+    if(arg != -1) {
+        get_opcode = OP_GET_LOCAL;
+        set_opcode = OP_SET_GLOBAL;
+    }
+    else {
+        arg = iden_constant(&name);
+        get_opcode = OP_GET_GLOBAL;
+        set_opcode = OP_SET_GLOBAL;
+    }
     /* handle assignment */
     if(match(TOKEN_EQUAL) && assignable) {
         expression();
-        emit_two_bytes(OP_SET_GLOBAL, arg);
+        emit_two_bytes(set_opcode, (uint8_t)arg);
     }
     else
-        emit_two_bytes(OP_GET_GLOBAL, arg);
+        emit_two_bytes(get_opcode, (uint8_t)arg);
 }
 
 static void variable(bool assignable) {
@@ -248,7 +327,6 @@ static void unary(bool assignable) {
     /* expression(); */
 
     parse_precedence(PREC_UNARY);
-
     switch(op_type) {
         case TOKEN_MINUS: emit_byte(OP_NEGATE); break; 
         case TOKEN_BANG:  emit_byte(OP_NOT); break;
@@ -267,6 +345,7 @@ parse_rule rules[] = {
     [TOKEN_MINUS]           = {unary, binary, PREC_TERM},
     [TOKEN_PLUS]            = {NULL, binary, PREC_TERM},
     [TOKEN_SEMICOLON]       = {NULL, NULL, PREC_NONE},
+    [TOKEN_COLON]           = {NULL, NULL, PREC_NONE},
     [TOKEN_SLASH]           = {NULL, binary, PREC_FACTOR},
     [TOKEN_STAR]            = {NULL, binary, PREC_FACTOR},
     [TOKEN_BANG]            = {unary, NULL, PREC_NONE},
@@ -337,11 +416,25 @@ static void parse_precedence(precedence precede){
 static uint8_t parse_variable(const char *err_message) {
     /* next token must be an identifier */
     consume(TOKEN_IDENTIFIER, err_message);
+
+    local_decl();
+    if(cur->scope_depth > 0)
+        /* exit function if locally scoped */
+        return 0;
     return iden_constant(&parser_obj.previous);
+}
+
+static void mark_init() {
+    cur->locals[cur->local_count - 1].depth = cur->scope_depth;
 }
 
 static void var_define(uint8_t global) {
     /* recieves the bytecode */ 
+    if(cur->scope_depth > 0) {
+        mark_init();
+        return;
+    }
+
     emit_two_bytes(OP_DEF_GLOBAL, global);
 }
 
@@ -415,10 +508,74 @@ static void declaration() {
     if(parser_obj.panic) synchronize();
 }
 
+static void block() {
+    while(!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+        declaration();
+    }
+    consume(TOKEN_RIGHT_BRACE, "expected '}' after block.");
+}
 
+static void begin_scope() {
+    cur->scope_depth++;
+}
+
+static void end_scope() {
+    cur->scope_depth--;
+    while(cur->local_count > 0 &&
+            cur->locals[cur->local_count - 1].depth > cur->scope_depth) {
+
+        emit_byte(OP_POP);
+        cur->local_count--;
+    }
+}
+
+static int emit_jump(uint8_t inst) {
+    emit_byte(inst);
+    emit_byte(0xff);  //placeholder
+    emit_byte(0xff);
+    return current_chunk()->count - 2;
+}
+
+static void patch_jump(int offset) {
+    int jump = current_chunk()->count - offset - 2;
+    if(jump > UINT16_MAX) {
+        error("too much code in the block to jump.");
+    }
+
+    current_chunk()->code[offset] = (jump >> 8) & 0xff;
+    current_chunk()->code[offset + 1] = jump & 0xff;
+}
+
+static void if_statement() {
+    consume(TOKEN_LEFT_PAREN, "expected '(' before if");
+    expression();
+    consume(TOKEN_RIGHT_PAREN, "expected ')' after if");
+
+    int now_jump = emit_jump(OP_JUMP_IF_FALSE);
+    emit_byte(OP_POP);
+    statement();
+
+    int else_jump = emit_jump(OP_JUMP);
+    patch_jump(now_jump);
+    emit_byte(OP_POP);
+
+    if(match(TOKEN_ELSE)){
+        statement();
+    }
+    patch_jump(else_jump);
+
+}
 
 static void statement() {
     if(match(TOKEN_PRINT)) print_statement();
+    else if(match(TOKEN_IF)){
+        if_statement();
+    }
+    else if (match(TOKEN_LEFT_BRACE)) {
+        begin_scope();
+        block();
+        end_scope();
+    }
     else {
         /* got an expression evaluation */
         expression();  //compile
@@ -429,6 +586,8 @@ static void statement() {
 
 bool compile(const char *source, Chunk *chunk) {
     init_scanner(source);
+    compiler comp;
+    init_compiler(&comp);
     compile_chunk = chunk;
 
     parser_obj.had_error = false;
