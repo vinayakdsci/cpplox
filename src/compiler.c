@@ -232,7 +232,7 @@ static void add_local(token name) {
 
     local *loc = &cur->locals[cur->local_count++];
     loc->name = name;
-    loc->depth = -1;
+    loc->depth = cur->scope_depth;
 }
 
 static bool iden_equal(token *a, token *b) {
@@ -295,7 +295,7 @@ static void named_var(token name, bool assignable) {
     int arg = resolve(cur, &name);
     if(arg != -1) {
         get_opcode = OP_GET_LOCAL;
-        set_opcode = OP_SET_GLOBAL;
+        set_opcode = OP_SET_LOCAL;
     }
     else {
         arg = iden_constant(&name);
@@ -332,8 +332,15 @@ static void patch_jump(int offset) {
     current_chunk()->code[offset + 1] = jump & 0xff;
 }
 
+static void and_ (bool assignable) {
+    int end_jump = emit_jump(OP_JUMP_IF_FALSE);
 
-static void or_(bool assignable) {
+    emit_byte(OP_POP);
+    parse_precedence(PREC_AND);
+    patch_jump(end_jump);
+}
+
+static void or_ (bool assignable) {
     int else_jump = emit_jump(OP_JUMP_IF_FALSE);
     int end_jump = emit_jump(OP_JUMP);
 
@@ -389,7 +396,7 @@ parse_rule rules[] = {
     [TOKEN_IDENTIFIER]      = {variable, NULL, PREC_NONE},
     [TOKEN_STRING]          = {string, NULL, PREC_NONE},
     [TOKEN_NUMBER]          = {number, NULL, PREC_NONE},
-    [TOKEN_AND]             = {NULL, NULL, PREC_NONE},
+    [TOKEN_AND]             = {NULL, and_, PREC_AND},
     [TOKEN_CLASS]           = {NULL, NULL, PREC_NONE},
     [TOKEN_ELSE]            = {NULL, NULL, PREC_NONE},
     [TOKEN_IF]              = {NULL, NULL, PREC_NONE},
@@ -449,12 +456,12 @@ static uint8_t parse_variable(const char *err_message) {
 
     local_decl();
     if(cur->scope_depth > 0)
-        /* exit function if locally scoped */
         return 0;
     return iden_constant(&parser_obj.previous);
 }
 
 static void mark_init() {
+    if(cur->scope_depth == 0) return;
     cur->locals[cur->local_count - 1].depth = cur->scope_depth;
 }
 
@@ -475,9 +482,6 @@ static parse_rule *get_rule(token_type type) {
 static void expression() {
     parse_precedence(PREC_ASSIGNMENT);
 }
-
-
-
 
 static void var_declare() {
     uint8_t global_var = parse_variable("expected variable name.");
@@ -605,6 +609,54 @@ static void while_statement() {
     emit_byte(OP_POP);
 }
 
+static void for_statement() {
+    begin_scope();
+    consume(TOKEN_LEFT_PAREN, "expected '(' after 'for'.");
+    if(match(TOKEN_SEMICOLON)) {
+        //empty!
+    }
+    else if (match(TOKEN_VAR)) {
+        var_declare();
+    }
+    else {
+       print_statement();
+    }
+    int loop_start = current_chunk()->count;
+
+    /* condition clause */
+
+    int exit_jump = -1;
+    if(!match(TOKEN_SEMICOLON)) {
+        expression();
+        consume(TOKEN_SEMICOLON, "expected ';' after loop condition.");
+        //exit loop for false condition
+        exit_jump = emit_jump(OP_JUMP_IF_FALSE);
+        emit_byte(OP_POP);
+    }
+
+    if(!match(TOKEN_RIGHT_PAREN)) {
+        int body_jump = emit_jump(OP_JUMP);
+        int increment = current_chunk()->count;
+        expression();
+        emit_byte(OP_POP);
+        consume(TOKEN_RIGHT_PAREN, "expected ')' after for clauses.");
+
+        emit_loop(loop_start);
+        loop_start = increment;
+        patch_jump(body_jump);
+    }
+
+    statement();
+    emit_loop(loop_start);
+
+    if(exit_jump != -1){
+        patch_jump(exit_jump);
+        emit_byte(OP_POP);
+    }
+
+    end_scope();
+}
+
 static void statement() {
     if(match(TOKEN_PRINT)) print_statement();
     else if(match(TOKEN_IF)){
@@ -617,6 +669,9 @@ static void statement() {
         begin_scope();
         block();
         end_scope();
+    }
+    else if(match(TOKEN_FOR)) {
+        for_statement();
     }
     else {
         /* got an expression evaluation */
