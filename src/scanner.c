@@ -125,7 +125,7 @@ static token_type identifier_type() {
                    if (scanner_object.current - scanner_object.start > 1) {
                        switch (scanner_object.start[1]) {
                            case 'o': return check_key(2, 1, "r", TOKEN_FOR);
-                           case 'u': return check_key(2, 1, "n", TOKEN_FUN);
+                           case 'n': return check_key(2, 0, "", TOKEN_FUN);
                            case 'a': return check_key(2, 3, "lse", TOKEN_FALSE);
                        }
                    }

@@ -57,6 +57,7 @@ typedef struct{
 #define AS_NUMBER(value)   ((value).as.number)
 #define AS_OBJ(value)      ((value).as.obj)
 
+
 /* convert C's static types to dynamic types in cpplox */
 #define BOOL_VAL(value)    ((Val){VAL_BOOL,   {.boolean = value}})
 #define NIL_VAL            ((Val){VAL_NIL,    {.number = 0}})

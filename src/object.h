@@ -3,15 +3,18 @@
 
 #include "common.h"
 #include "value.h"
+#include "chunk.h"
 
-#define OBJ_TYPE(value)         (AS_OBJ(value)->type)
-#define IS_STRING(str)   is_object_type(str, OBJ_STRING)
-#define AS_STRING(value)    ((obj_string*)AS_OBJ(value))
-#define AS_CSTRING(value)   (((obj_string*)AS_OBJ(value))->chars)
-
+#define OBJ_TYPE(value)      (AS_OBJ(value)->type)
+#define IS_STRING(str)       is_object_type(str, OBJ_STRING)
+#define AS_STRING(value)     ((obj_string*)AS_OBJ(value))
+#define AS_FUNCTION(value)     ((obj_function*)AS_OBJ(value))
+#define AS_CSTRING(value)    (((obj_string*)AS_OBJ(value))->chars)
+#define IS_FUNCTION(value)   is_object_type(value, OBJ_FUNCTION)
 
 /* define the object held in the Obj */
 typedef enum {
+    OBJ_FUNCTION,
     OBJ_STRING,
 } object_type;
 
@@ -21,6 +24,14 @@ struct Obj {
     struct Obj *next;
 };
 
+/* first class construct */
+typedef struct {
+    Obj obj;
+    int arity; //arg count of the function
+    Chunk chunk;
+    obj_string *name;
+} obj_function;
+
 struct obj_string {
     Obj obj;
     int length;
@@ -28,6 +39,8 @@ struct obj_string {
     /* cache the string name for a variable */
     uint32_t hash;
 };
+
+obj_function *new_function();
 
 /* ensure cast safety */
 

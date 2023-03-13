@@ -4,12 +4,20 @@
 #include "chunk.h"
 #include "value.h"
 #include "table.h"
+#include "object.h"
 
-#define STACK_MAX 256   //Are 8 bytes enough?
+#define FRAMES_MAX 64
+#define STACK_MAX (FRAMES_MAX + UINT8_COUNT)   //Are 8 bytes enough?
 
 typedef struct {
-    Chunk *chunk;
+    obj_function *function;
     uint8_t *ip;
+    Val *slots;
+} call_frame;
+
+typedef struct {
+    call_frame frame[FRAMES_MAX];
+    int frame_count;
     Val stack[STACK_MAX]; //My stack based proglang!
     Val *stack_top;
     table strings; //String interning
