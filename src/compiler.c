@@ -254,7 +254,7 @@ static void local_decl() {
         }
         //(TODO) rename
         if(iden_equal(name, &loc->name)) {
-            error("a variable with the same name already exists in this scope");
+            error("a variable with the same name already exists in this scope.");
         }
     }
     add_local(*name);
@@ -315,6 +315,36 @@ static void variable(bool assignable) {
     named_var(parser_obj.previous, assignable);
 }
 
+static int emit_jump(uint8_t inst) {
+    emit_byte(inst);
+    emit_byte(0xff);  //placeholder
+    emit_byte(0xff);
+    return current_chunk()->count - 2;
+}
+
+static void patch_jump(int offset) {
+    int jump = current_chunk()->count - offset - 2;
+    if(jump > UINT16_MAX) {
+        error("too much code in the block to jump.");
+    }
+
+    current_chunk()->code[offset] = (jump >> 8) & 0xff;
+    current_chunk()->code[offset + 1] = jump & 0xff;
+}
+
+
+static void or_(bool assignable) {
+    int else_jump = emit_jump(OP_JUMP_IF_FALSE);
+    int end_jump = emit_jump(OP_JUMP);
+
+    patch_jump(else_jump);
+    emit_byte(OP_POP);
+
+    parse_precedence(PREC_OR);
+    patch_jump(end_jump);
+}
+
+
 /* Unary definitions */
 static void unary(bool assignable) {
     /*
@@ -366,7 +396,7 @@ parse_rule rules[] = {
     [TOKEN_FALSE]           = {literal, NULL, PREC_NONE},
     [TOKEN_FUN]             = {NULL, NULL, PREC_NONE},
     [TOKEN_NIL]             = {literal, NULL, PREC_NONE},
-    [TOKEN_OR]              = {NULL, NULL, PREC_NONE},
+    [TOKEN_OR]              = {NULL, or_, PREC_OR},
     [TOKEN_FOR]             = {NULL, NULL, PREC_NONE},
     [TOKEN_PRINT]           = {NULL, NULL, PREC_NONE},
     [TOKEN_RETURN]          = {NULL, NULL, PREC_NONE},
@@ -529,22 +559,6 @@ static void end_scope() {
     }
 }
 
-static int emit_jump(uint8_t inst) {
-    emit_byte(inst);
-    emit_byte(0xff);  //placeholder
-    emit_byte(0xff);
-    return current_chunk()->count - 2;
-}
-
-static void patch_jump(int offset) {
-    int jump = current_chunk()->count - offset - 2;
-    if(jump > UINT16_MAX) {
-        error("too much code in the block to jump.");
-    }
-
-    current_chunk()->code[offset] = (jump >> 8) & 0xff;
-    current_chunk()->code[offset + 1] = jump & 0xff;
-}
 
 static void if_statement() {
     consume(TOKEN_LEFT_PAREN, "expected '(' before if");
@@ -566,10 +580,38 @@ static void if_statement() {
 
 }
 
+static void emit_loop(int loop_start) {
+    emit_byte(OP_LOOP);
+
+    int offset = current_chunk()->count - loop_start + 2;
+    if(offset > UINT16_MAX) error("loop body too large.");
+
+    emit_byte((offset >> 8) & 0xff);
+    emit_byte(offset & 0xff);
+}
+
+static void while_statement() {
+    int loop_start = current_chunk()->count;
+    consume(TOKEN_LEFT_PAREN, "expected '(' after while.");
+    expression();
+    consume(TOKEN_RIGHT_PAREN, "expected ')' after condition.");
+
+    int exit_jump = emit_jump(OP_JUMP_IF_FALSE);
+    emit_byte(OP_POP);
+    statement();
+    emit_loop(loop_start);
+
+    patch_jump(exit_jump);
+    emit_byte(OP_POP);
+}
+
 static void statement() {
     if(match(TOKEN_PRINT)) print_statement();
     else if(match(TOKEN_IF)){
         if_statement();
+    }
+    else if(match(TOKEN_WHILE)) {
+        while_statement();
     }
     else if (match(TOKEN_LEFT_BRACE)) {
         begin_scope();

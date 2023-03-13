@@ -79,7 +79,7 @@ static void concatenate() {
     memcpy(new_chars, a->chars, a->length);
     memcpy(new_chars + a->length, b->chars, b->length);
     new_chars[new_length] = '\0';
-    
+
     obj_string *result = take_string(new_chars, new_length);
     push(OBJ_VAL(result));
 }
@@ -164,7 +164,7 @@ static interpreted_result run (void) {
                                    vm.stack[slot] = peek(0);
                                    break;
                                }
-            /* add types for nil, true, false */
+                               /* add types for nil, true, false */
             case OP_EQUAL: {
                                Val a  = pop();
                                Val b = pop();
@@ -203,13 +203,18 @@ static interpreted_result run (void) {
                                        return INTERPRET_RUNTIME_ERROR;
                                    }
                                    break;
-                               } 
+                                }
             case OP_SUBTRACT:   BIN_OP(NUMBER_VAL, -);    break;
             case OP_MULTIPLY:   BIN_OP(NUMBER_VAL, *);    break;
             case OP_DIVIDE:     BIN_OP(NUMBER_VAL, /);    break;
             case OP_NOT:
                                 push(BOOL_VAL(is_false(pop())));
                                 break;
+            case OP_LOOP:       {
+                                    uint16_t offset = READ_SHORT();
+                                    vm.ip -= offset;
+                                    break;
+                                }
             case OP_NEGATE:  
                                 /* First check if the element at the top
                                  * of the stack is a number.
@@ -222,7 +227,7 @@ static interpreted_result run (void) {
                                 }
                                 push(NUMBER_VAL(-AS_NUMBER(pop())));
                                 break;
-            case OP_PRINT:      {print_val(pop()); printf("\n"); break;}
+            case OP_PRINT:      {print_val(pop()); break;}
             case OP_POP:        pop(); break;
             case OP_RETURN:  
                                 //simply exit, as print has been intro'd

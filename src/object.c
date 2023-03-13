@@ -74,8 +74,14 @@ obj_string *copy_string(const char *chars, int length) {
 
 void print_object(Val value) {
     switch (OBJ_TYPE(value)) {
-        case OBJ_STRING:
-            printf("%s", AS_CSTRING(value));
-            break;
+        case OBJ_STRING: {
+                             const char *newline = "\\n";
+                             if (!strncmp(AS_CSTRING(value), newline, 3))
+                                 printf("\n");
+                             else
+                                 printf("%s", AS_CSTRING(value));
+                             break;
+
+                         }
     }
 }
