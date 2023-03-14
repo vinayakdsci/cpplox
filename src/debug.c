@@ -67,6 +67,14 @@ int disassembleInstruction(Chunk* chunk, int offset) {
                         return const_instruction("OP_DEF_GLOBAL", chunk, offset);
                 case OP_CALL:
                         return byte_instruction("OP_CALL", chunk, offset);
+                case OP_CLOSURE: {
+                                         offset++;
+                                         uint8_t constant = chunk->code[offset++];
+                                         printf("%-16s %4d","OP_CLOSURE", constant);
+                                         print_val(chunk->constants.values[constant]);
+                                         printf("\n");
+                                         return offset;
+                                 }
                 case OP_GET_LOCAL:
                         return byte_instruction("OP_GET_LOCAL", chunk, offset);
                 case OP_SET_LOCAL:

@@ -25,7 +25,7 @@ typedef enum {
     VAL_BOOL,
     VAL_NIL,
     VAL_NUMBER,
-    VAL_OBJ    //hold heap allocated objects
+    VAL_OBJ,    //hold heap allocated objects
 } value_type;
 
 /* Here is the tagged-union!
@@ -56,6 +56,8 @@ typedef struct{
 #define AS_BOOL(value)     ((value).as.boolean)
 #define AS_NUMBER(value)   ((value).as.number)
 #define AS_OBJ(value)      ((value).as.obj)
+#define AS_NATIVE(value)   (((obj_native*)AS_OBJ(value))->function)
+
 
 
 /* convert C's static types to dynamic types in cpplox */

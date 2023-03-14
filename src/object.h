@@ -6,15 +6,20 @@
 #include "chunk.h"
 
 #define OBJ_TYPE(value)      (AS_OBJ(value)->type)
+#define IS_NATIVE(value)     is_object_type(value, OBJ_NATIVE)
 #define IS_STRING(str)       is_object_type(str, OBJ_STRING)
 #define AS_STRING(value)     ((obj_string*)AS_OBJ(value))
-#define AS_FUNCTION(value)     ((obj_function*)AS_OBJ(value))
+#define AS_FUNCTION(value)   ((obj_function*)AS_OBJ(value))
 #define AS_CSTRING(value)    (((obj_string*)AS_OBJ(value))->chars)
+#define AS_CLOSURE(value)           ((obj_closure*) AS_OBJ(value))
 #define IS_FUNCTION(value)   is_object_type(value, OBJ_FUNCTION)
+#define IS_CLOSURE(value)    is_object_type(value, OBJ_CLOSURE);
 
 /* define the object held in the Obj */
 typedef enum {
+    OBJ_CLOSURE,
     OBJ_FUNCTION,
+    OBJ_NATIVE,
     OBJ_STRING,
 } object_type;
 
@@ -32,6 +37,12 @@ typedef struct {
     obj_string *name;
 } obj_function;
 
+typedef Val (*native)(int arg_count, Val *args);
+typedef struct {
+    Obj obj;
+    native function;
+} obj_native;
+
 struct obj_string {
     Obj obj;
     int length;
@@ -40,7 +51,15 @@ struct obj_string {
     uint32_t hash;
 };
 
+typedef struct {
+    Obj obj;
+    obj_function *function;
+} obj_closure;
+
+obj_closure *new_closure(obj_function *function);
 obj_function *new_function();
+
+obj_native *new_native(native function);
 
 /* ensure cast safety */
 

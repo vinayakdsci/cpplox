@@ -124,6 +124,7 @@ static void emit_two_bytes(uint8_t byte1, uint8_t byte2){
 
 
 static void emit_return() {
+    emit_byte(OP_NIL);
     emit_byte(OP_RETURN);
 }
 
@@ -402,8 +403,8 @@ static uint8_t arg_list() {
     if(!check(TOKEN_RIGHT_PAREN)) {
         do {
             expression();
-            if(count == 155)
-                error("can;t have more than 255 params.");
+            if(count == 255)
+                error("can't have more than 255 params.");
             count++;
         } while(match(TOKEN_COMMA));
     }
@@ -497,7 +498,6 @@ static void parse_precedence(precedence precede){
 static uint8_t parse_variable(const char *err_message) {
     /* next token must be an identifier */
     consume(TOKEN_IDENTIFIER, err_message);
-
     local_decl();
     if(cur->scope_depth > 0)
         return 0;
@@ -533,12 +533,11 @@ static void var_declare() {
     if(match(TOKEN_EQUAL)) 
         expression();  //compile
     else 
+        emit_byte(OP_NIL);
         /* essentially, when the compiler sees var variable;
          * it emits a NIL byte, essentially setting it as var variable = nil;
          * this must set .number as 0
          * */
-        emit_byte(OP_NIL);
-
     consume(TOKEN_SEMICOLON, "expected ';' after variable declaration");
 
     var_define(global_var);
@@ -616,6 +615,7 @@ static void function(function_type type) {
 	consume(TOKEN_LEFT_BRACE, "expected '{' to begin function body.");
 	block();
 	obj_function *fn = wrap_compiler();
+        emit_two_bytes(OP_CLOSURE, make_constant(OBJ_VAL(fn)));
 	emit_two_bytes(OP_CONSTANT, make_constant(OBJ_VAL(fn)));
 
 }
@@ -653,7 +653,11 @@ static void if_statement() {
     emit_byte(OP_POP);
 
     if(match(TOKEN_ELSE)){
-        statement();
+        if(match(TOKEN_IF)) {
+            if_statement();
+        }
+        else
+            statement();
     }
     patch_jump(else_jump);
 
@@ -694,7 +698,9 @@ static void for_statement() {
         var_declare();
     }
     else {
-        print_statement();
+        expression();
+        consume(TOKEN_SEMICOLON, "expected ';' after return statement.");
+        emit_byte(OP_RETURN);
     }
     int loop_start = current_chunk()->count;
 
@@ -732,10 +738,27 @@ static void for_statement() {
     end_scope();
 }
 
+static void return_statement() {
+    if(cur->type == type_script)
+        error("can't return from top-level");
+
+    if(match(TOKEN_SEMICOLON)) {
+        emit_return();
+    }
+    else {
+        expression();
+        consume(TOKEN_SEMICOLON, "expected ';' after return statement.");
+        emit_byte(OP_RETURN);
+    }
+}
+
 static void statement() {
     if(match(TOKEN_PRINT)) print_statement();
     else if(match(TOKEN_IF)){
         if_statement();
+    }
+    else if(match(TOKEN_RETURN)){
+        return_statement();
     }
     else if(match(TOKEN_WHILE)) {
         while_statement();
@@ -771,7 +794,7 @@ obj_function *compile(const char *source) {
 
     obj_function *fun = wrap_compiler();
 
-    return !parser_obj.had_error ? fun : NULL;
+    return parser_obj.had_error ? NULL : fun;
 
 }
 

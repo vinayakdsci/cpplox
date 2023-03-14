@@ -7,10 +7,10 @@
 #include "object.h"
 
 #define FRAMES_MAX 64
-#define STACK_MAX (FRAMES_MAX + UINT8_COUNT)   //Are 8 bytes enough?
+#define STACK_MAX (FRAMES_MAX * UINT8_COUNT)   //Are 8 bytes enough?
 
 typedef struct {
-    obj_function *function;
+    obj_closure *closure;
     uint8_t *ip;
     Val *slots;
 } call_frame;

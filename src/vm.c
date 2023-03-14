@@ -1,6 +1,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "debug.h"
 #include "object.h"
@@ -24,14 +25,14 @@ static void runtime_error(const char *format, ...) {
     vfprintf(stderr, format, args);
     va_end(args);
     fputs("\n", stderr);
-    call_frame *frame = &vm.frame[vm.frame_count - 1];
-    size_t instruction = frame->ip - frame->function->chunk.code - 1;
-    int lines = frame->function->chunk.lines[instruction];
-    fprintf(stderr, "line [%d] in script\n", lines);
+    /* call_frame *frame = &vm.frame[vm.frame_count - 1]; */
+    /* size_t instruction = frame->ip - frame->function->chunk.code - 1; */
+    /* int lines = frame->function->chunk.lines[instruction]; */
+    /* fprintf(stderr, "line [%d] in script\n", lines); */
 
     for(int i = vm.frame_count - 1; i >= 0; i--) {
         call_frame *frame = &vm.frame[i];
-        obj_function *function = frame->function;
+        obj_function *function = frame->closure->function;
         size_t inst = frame->ip - function->chunk.code - 1;
 
         fprintf(stderr, "line [%d] in ", function->chunk.lines[inst]);
@@ -39,10 +40,22 @@ static void runtime_error(const char *format, ...) {
             fprintf(stderr, "script\n");
         }
         else {
-            fprintf(stderr, "%s()", function->name->chars);
+            fprintf(stderr, "%s()\n", function->name->chars);
         }
     }
     reset_stack();
+}
+
+static Val native_clock(int argcount, Val *args) {
+    return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+}
+
+static void native_define(const char *name, native function) {
+    push(OBJ_VAL(copy_string(name, (int)(strlen(name)))));
+    push(OBJ_VAL(new_native(function)));
+    set_table(&vm.globals, AS_STRING(vm.stack[0]), vm.stack[1]);
+    pop();
+    pop();
 }
 
 /*
@@ -55,6 +68,7 @@ void init_vm() {
     vm.objects = NULL;
     init_table(&vm.globals);
     init_table(&vm.strings);
+    native_define("clock", native_clock);
 }
 
 
@@ -82,9 +96,9 @@ static Val peek(int distance) {
     return vm.stack_top[-1 - distance];
 }
 
-static bool call(obj_function *function, int arg_count) {
-    if(function->arity != arg_count){
-        runtime_error("expected %d args, but got %d", function->arity,  arg_count);
+static bool call(obj_closure *closure, int arg_count) {
+    if(closure->function->arity != arg_count){
+        runtime_error("expected %d args, but got %d", closure->function->arity,  arg_count);
         return false;
     }
 
@@ -94,8 +108,8 @@ static bool call(obj_function *function, int arg_count) {
     }
 
     call_frame *frame = &vm.frame[vm.frame_count++];
-    frame->function = function;
-    frame->ip = function->chunk.code;
+    frame->closure = closure;
+    frame->ip = closure->function->chunk.code;
     frame->slots = vm.stack_top - arg_count - 1;
     return true;
 }
@@ -103,12 +117,21 @@ static bool call(obj_function *function, int arg_count) {
 static bool call_val(Val value, int arg_count) {
     if(IS_OBJ(value)) {
         switch(OBJ_TYPE(value)) {
-            case OBJ_FUNCTION:
-                return call(AS_FUNCTION(value), arg_count);
+            case OBJ_CLOSURE:
+                return call(AS_CLOSURE(value), arg_count);
+            /* case OBJ_FUNCTION: */
+            /*     return call(AS_FUNCTION(value), arg_count); */
+            case OBJ_NATIVE: {
+                                 native n = AS_NATIVE(value);
+                                 Val result = n(arg_count, vm.stack_top - arg_count);
+                                 vm.stack_top -= arg_count + 1;
+                                 push(result);
+                                 return true;
+                             }
             default: break;
         }
     }
-    runtime_error("can only call functions and classes.");
+    runtime_error("can only call functions.");
     return false;
 }
 
@@ -134,7 +157,7 @@ static void concatenate() {
 static interpreted_result run (void) {
     call_frame *frame = &vm.frame[vm.frame_count - 1];
 #define READ_BYTE() (*frame->ip++)
-#define READ_CONSTANT() (frame->function->chunk.constants.values[READ_BYTE()])
+#define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
     /* read a single byte constant from the bytecode chunk */
 #define READ_STRING()   AS_STRING(READ_CONSTANT())
 #define READ_SHORT()   \
@@ -161,7 +184,7 @@ static interpreted_result run (void) {
             printf(" ]");
         }
         printf("\n");
-        disassembleInstruction(&frame->function->chunk, (int)(frame->ip - frame->function->chunk.code)); 
+        disassembleInstruction(&frame->closure->function->chunk, (int)(frame->ip - frame->closure->function->chunk.code)); 
 #endif
         uint8_t instruction;
         switch(instruction = READ_BYTE()) {
@@ -187,7 +210,7 @@ static interpreted_result run (void) {
                                     Val value;
                                     if(!get_table(&vm.globals, name, &value)) {
                                         /* if you can't find the var, it's undefined */
-                                        runtime_error("undefined variable '%s'.");
+                                        runtime_error("undefined variable '%s in get_glob'.", name->chars);
                                         return INTERPRET_RUNTIME_ERROR;
                                     }
                                     push(value);
@@ -198,6 +221,7 @@ static interpreted_result run (void) {
                                     obj_string *name = READ_STRING();
                                     if(set_table(&vm.globals, name, peek(0))) {
                                         delete_table(&vm.globals, name);
+                                        runtime_error("Undefined variable %s in set_glob", name->chars);
                                         return INTERPRET_RUNTIME_ERROR;
                                     }
                                     break;
@@ -239,8 +263,15 @@ static interpreted_result run (void) {
                               int arg_count = READ_BYTE();
                               if(!call_val(peek(arg_count), arg_count))
                                   return INTERPRET_RUNTIME_ERROR;
+                              frame = &vm.frame[vm.frame_count - 1];                              
                               break;
 			  }
+            case OP_CLOSURE: {
+                                 obj_function *function = AS_FUNCTION(READ_CONSTANT());
+                                 obj_closure *closure = new_closure(function);
+                                 push(OBJ_VAL(closure));
+                                 break;
+                             }
             case OP_ADD:       {
                                    /* check if string */
                                    if(IS_STRING(peek(0)) && IS_STRING(peek(1))) {
@@ -256,7 +287,6 @@ static interpreted_result run (void) {
                                        runtime_error("Operands to '+' must be two numbers or two strings");
                                        return INTERPRET_RUNTIME_ERROR;
                                    }
-                                   frame = &vm.frame[vm.frame_count - 1];
                                    break;
                                 }
             case OP_SUBTRACT:   BIN_OP(NUMBER_VAL, -);    break;
@@ -284,10 +314,19 @@ static interpreted_result run (void) {
                                 break;
             case OP_PRINT:      {print_val(pop()); break;}
             case OP_POP:        pop(); break;
-            case OP_RETURN:  
-                                //simply exit, as print has been intro'd
-                                return INTERPRET_OK; 
-
+            case OP_RETURN:  {
+                                 //simply exit, as print has been intro'd
+                                 Val result = pop();
+                                 vm.frame_count--;
+                                 if(vm.frame_count == 0) {
+                                     pop();
+                                     return INTERPRET_OK;
+                                 }
+                                 vm.stack_top = frame->slots;
+                                 push(result);
+                                 frame = &vm.frame[vm.frame_count - 1];
+                                 break;
+                             }
         }
     }
 #undef READ_BYTE
@@ -304,13 +343,17 @@ interpreted_result interpret(const char *source) {
         return INTERPRET_COMPILE_ERROR;
     }
     push(OBJ_VAL(function));
-    /* top level function call */
-    call(function, 0);
+    obj_closure *closure = new_closure(function);
+    pop();
+    push(OBJ_VAL(closure));
+    /* call_frame *frame = &vm.frame[vm.frame_count++]; */
+    /* frame->function = function; */
+    /* frame->ip = function->chunk.code; */
+    /* frame->slots = vm.stack; */
 
-    call_frame *frame = &vm.frame[vm.frame_count++];
-    frame->function = function;
-    frame->ip = function->chunk.code;
-    frame->slots = vm.stack;
+    
+    /* top level function call */
+    call(closure, 0);
 
     return run();
 }

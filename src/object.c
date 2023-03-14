@@ -22,12 +22,24 @@ static Obj *allocate_object(size_t size, object_type type) {
     return object;
 }
 
+obj_closure *new_closure(obj_function *function) {
+    obj_closure *closure = ALLOCATE_OBJ(obj_closure, OBJ_CLOSURE);
+    closure->function = function;
+    return closure;
+}
+
 obj_function *new_function() {
     obj_function *function = ALLOCATE_OBJ(obj_function, OBJ_FUNCTION);
     function->arity = 0;
     function->name = NULL;
     initChunk(&function->chunk);
     return function;
+}
+
+obj_native *new_native(native function) {
+    obj_native *n = ALLOCATE_OBJ(obj_native, OBJ_NATIVE);
+    n->function = function;
+    return n;
 }
 
 /* allocate the string on the heap */
@@ -90,8 +102,15 @@ static void print_function(obj_function *function) {
 
 void print_object(Val value) {
     switch (OBJ_TYPE(value)) {
+
+        case OBJ_CLOSURE:
+                            print_function(AS_CLOSURE(value)->function);
+                            break;
         case OBJ_FUNCTION:
                             print_function(AS_FUNCTION(value));
+                            break;
+        case OBJ_NATIVE:
+                            printf("<native fn>");
                             break;
         case OBJ_STRING: {
                              const char *newline = "\\n";

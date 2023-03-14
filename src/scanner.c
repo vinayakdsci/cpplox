@@ -111,7 +111,8 @@ static token_type identifier_type() {
         case 'n' : return check_key(1, 2, "il", TOKEN_NIL);
         case 'i' : return check_key(1, 1, "f", TOKEN_IF);
         /* case 'p' : return check_key(1, 4, "rint", TOKEN_PRINT); */
-        case 'v' : return check_key(1, 2, "ar", TOKEN_VAR);
+        /* case 'v' : return check_key(1, 2, "ar", TOKEN_VAR); */
+        case 'l' : return check_key(1, 2, "et", TOKEN_VAR);
         case 'r' : return check_key(1, 5, "eturn", TOKEN_RETURN);
         case 's' : return check_key(1, 4, "uper", TOKEN_SUPER);
         case 'w' : if(scanner_object.current - scanner_object.start > 1) {
@@ -125,7 +126,7 @@ static token_type identifier_type() {
                    if (scanner_object.current - scanner_object.start > 1) {
                        switch (scanner_object.start[1]) {
                            case 'o': return check_key(2, 1, "r", TOKEN_FOR);
-                           case 'n': return check_key(2, 0, "", TOKEN_FUN);
+                           case 'n': return TOKEN_FUN;
                            case 'a': return check_key(2, 3, "lse", TOKEN_FALSE);
                        }
                    }
@@ -165,13 +166,10 @@ static void skip_whitespace() {
                 scanner_object.line++;
                 advance();
                 break;
-            case '/':
-                if(peek_next() == '/'){
+            case '#':
                     while(peek() != '\n' && !is_at_end()) advance();
-                }
-                else {
-                    return ;
-                }
+            /* case '/': */
+                /* return ; */
                 break;
             default:
                 return;
