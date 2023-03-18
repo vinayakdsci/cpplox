@@ -72,6 +72,8 @@ int disassembleInstruction(Chunk* chunk, int offset) {
                         return byte_instruction("OP_SET_UPVALUE", chunk, offset);
                 case OP_GET_UPVALUE:
                         return byte_instruction("OP_GET_UPVALUE", chunk, offset);
+                case OP_CLOSE_UPVALUE:
+                        return simpleInstruction("OP_CLOSE_UPVALUE", offset);
                 case OP_CLOSURE: {
                                          offset++;
                                          uint8_t constant = chunk->code[offset++];

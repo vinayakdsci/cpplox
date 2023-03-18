@@ -4,8 +4,9 @@
 
 #include "memory.h"
 #include "table.h"
-#include "value.h"
 #include "object.h"
+#include "compiler.h"
+#include "value.h"
 #include "vm.h"
 
 #define ALLOCATE_OBJ(type, objtype) \
@@ -102,7 +103,9 @@ obj_string *copy_string(const char *chars, int length) {
 
 obj_upvalue *new_upvalue(Val *slot) {
     obj_upvalue *upvalue = ALLOCATE_OBJ(obj_upvalue, OBJ_UPVALUE);
+    upvalue->closed = NIL_VAL;
     upvalue->location = slot;
+    upvalue->next = NULL;
     return upvalue;
 } 
 
@@ -127,13 +130,41 @@ void print_object(Val value) {
                             printf("<native fn>");
                             break;
         case OBJ_STRING: {
-                             const char *newline = "\\n";
-                             if (!strncmp(AS_CSTRING(value), newline, 3))
-                                 printf("\n");
-                             else
-                                 printf("%s", AS_CSTRING(value));
+                             char *x = AS_CSTRING(value);
+                             int len = strlen(x);
+                             bool panic = false;
+                             for (int i = 0; x[i] != '\0' && !panic; i++) {
+                                 if(x[i] == '\n') continue;
+                                 if(x[i] == '\\'){
+                                     switch(x[i + 1]){
+                                         case 'n' :continue; break;
+                                         case 't' : continue;break;
+                                         case 'r' : continue; break;
+                                         default : {
+                                                       special_error("unknown escape sequence");
+                                                       return;
+                                                   }
+                                     }
+                                     i++;
+                                    continue;
+                                 }
+                             }
+                             
+                             for (int i = 0; i < len - 1 && !panic; i++) {
+                                 if(x[i] == '\\'){
+                                     switch(x[i + 1]){
+                                         case 'n' : printf("\n"); break;
+                                         case 't' : printf("\t"); break;
+                                         case 'r' : printf("\r"); break;
+                                         default: ;
+                                     }
+                                     i++;
+                                    continue;
+                                 }
+                                 printf("%c", x[i]);
+                             }
+                             if(x[len-2] != '\\') printf("%c", x[len - 1]);
                              break;
-
                          }
         case OBJ_UPVALUE:
                          printf("upvalue");

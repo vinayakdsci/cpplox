@@ -43,6 +43,7 @@ typedef struct {
 typedef struct {
     token name;
     int depth;
+    bool captured;
 } local;
 
 typedef struct {
@@ -67,7 +68,7 @@ typedef struct compiler {
     int scope_depth;
 } compiler;
 
-parser parser_obj;
+ parser parser_obj;
 compiler *cur = NULL;
 Chunk *compile_chunk;
 
@@ -77,19 +78,23 @@ static Chunk *current_chunk() {
 
 /* define the precedence of operators */
 
-static void error_at(token *tok, const char *message) {
+static void error_at(token *tok, const char *message, const char *caller) {
     if(parser_obj.panic)
         return;
 
     parser_obj.panic = true;
-
+    const char *poss_caller_one = "error";
     /* print the line of error first */
-    fprintf(stderr, "[line %d] error ", tok->line);
+    if(!strncmp(caller, poss_caller_one, 5))
+        fprintf(stderr, "[line %d] error ", tok->line);
+    else 
+        fprintf(stderr, "[line %d] error ", tok->line - 1);
+
     if(tok->type == TOKEN_EOF) {
         fprintf(stderr, "reached end of file while parsing");
     }
     else if(tok->type == TOKEN_ERROR){
-        /* printf("TOKEN_ERROR"); */
+        /* printf("unknown escape sequence.\n"); */
     }
     else {
         fprintf(stderr, "at %.*s", tok->length, tok->start);
@@ -102,7 +107,12 @@ static void error_at(token *tok, const char *message) {
 
 
 static void error(const char *message) {
-    error_at(&parser_obj.current, message);
+    error_at(&parser_obj.current, message, "error");
+}
+
+void special_error(const char *msg) {
+    /* &parser_obj.current.line -= 1; */
+    error_at(&parser_obj.previous, msg, "special_error");
 }
 
 static void advance() {
@@ -265,7 +275,8 @@ static void add_local(token name) {
 
     local *loc = &cur->locals[cur->local_count++];
     loc->name = name;
-    loc->depth = cur->scope_depth;
+    loc->depth = -1;
+    loc->captured = false;
 }
 
 static bool iden_equal(token *a, token *b) {
@@ -343,9 +354,11 @@ static int resolve_upvalue(compiler *comp, token *name) {
 
     int loc = resolve(comp->encl, name);
 
-    if(loc != -1)
+    if(loc != -1) {
+        comp->encl->locals[loc].captured = true;
         return add_upvalue(comp, (uint8_t)loc, true);
 
+    }
     int upvalue = resolve_upvalue(comp->encl, name);
 
     if(upvalue != -1)
@@ -623,9 +636,14 @@ static void begin_scope() {
 static void end_scope() {
     cur->scope_depth--;
     while(cur->local_count > 0 &&
-            cur->locals[cur->local_count - 1].depth > cur->scope_depth) {
+          cur->locals[cur->local_count - 1].depth > cur->scope_depth) {
 
-        emit_byte(OP_POP);
+        if(cur->locals[cur->local_count - 1].captured){
+            emit_byte(OP_CLOSE_UPVALUE);
+        }
+        else {
+            emit_byte(OP_POP);
+        }
         cur->local_count--;
     }
 }

@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-
-
 #include "common.h"
 #include "chunk.h"
 #include "debug.h"
@@ -14,13 +12,12 @@ static void repl() {
     char line[1024];
     printf("Press ^D or type 'exit' to exit\n");
     for (;;) {
-        printf("λ> ");
+        printf("\nλ> ");
         if(!fgets(line, sizeof(line), stdin)){
-            printf("\n");
             break;
         }
 
-        char *exit = "exit";
+        char exit[4] = "exit";
         if(strncmp(exit, line, 4) == 0)
             return;
 

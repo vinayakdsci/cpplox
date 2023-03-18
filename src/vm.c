@@ -16,6 +16,7 @@ VM vm;
 static void reset_stack() {
     vm.stack_top = vm.stack;    //set stack_top to the beginning of the array to indecate it is empty
     vm.frame_count = 0;
+    vm.open_upvalue = NULL;
 }
 
 /* a Variadic function */
@@ -35,7 +36,8 @@ static void runtime_error(const char *format, ...) {
         obj_function *function = frame->closure->function;
         size_t inst = frame->ip - function->chunk.code - 1;
 
-        fprintf(stderr, "line [%d] in ", function->chunk.lines[inst]);
+        fprintf(stderr, "[line %d] in ", function->chunk.lines[inst]);
+
         if(function->name == NULL) {
             fprintf(stderr, "script\n");
         }
@@ -119,8 +121,8 @@ static bool call_val(Val value, int arg_count) {
         switch(OBJ_TYPE(value)) {
             case OBJ_CLOSURE:
                 return call(AS_CLOSURE(value), arg_count);
-            /* case OBJ_FUNCTION: */
-            /*     return call(AS_FUNCTION(value), arg_count); */
+                /* case OBJ_FUNCTION: */
+                /*     return call(AS_FUNCTION(value), arg_count); */
             case OBJ_NATIVE: {
                                  native n = AS_NATIVE(value);
                                  Val result = n(arg_count, vm.stack_top - arg_count);
@@ -136,7 +138,26 @@ static bool call_val(Val value, int arg_count) {
 }
 
 static obj_upvalue *capture_upvalue(Val *local) {
+    obj_upvalue *prevalue = NULL;
+    obj_upvalue *postvalue = vm.open_upvalue;
+
+    while(postvalue != NULL && postvalue->location > local){
+        prevalue = postvalue;
+        postvalue = postvalue->next;
+    }
+
+    if(postvalue != NULL && postvalue->location == local)
+        return postvalue;
+
     obj_upvalue *upval = new_upvalue(local);
+    upval->next = postvalue;
+
+    if(prevalue == NULL) {
+        vm.open_upvalue = upval;
+    }
+    else {
+        prevalue->next = upval;
+    }
     return upval;
 }
 
@@ -157,6 +178,15 @@ static void concatenate() {
 
     obj_string *result = take_string(new_chars, new_length);
     push(OBJ_VAL(result));
+}
+static void close_upvalues(Val *last) {
+    while(vm.open_upvalue != NULL && 
+            vm.open_upvalue->location >= last) {
+        obj_upvalue *value = vm.open_upvalue;
+        value->closed = *value->location;
+        value->location = &value->closed;
+        vm.open_upvalue = value->next;
+    }
 }
 
 static interpreted_result run (void) {
@@ -270,7 +300,7 @@ static interpreted_result run (void) {
                                   return INTERPRET_RUNTIME_ERROR;
                               frame = &vm.frame[vm.frame_count - 1];                              
                               break;
-			  }
+                          }
             case OP_CLOSURE: {
                                  obj_function *function = AS_FUNCTION(READ_CONSTANT());
                                  obj_closure *closure = new_closure(function);
@@ -302,7 +332,11 @@ static interpreted_result run (void) {
                                        return INTERPRET_RUNTIME_ERROR;
                                    }
                                    break;
-                                }
+                               }
+            case OP_CLOSE_UPVALUE:
+                               close_upvalues(vm.stack_top - 1);
+                               pop();
+                               break;
             case OP_SUBTRACT:   BIN_OP(NUMBER_VAL, -);    break;
             case OP_MULTIPLY:   BIN_OP(NUMBER_VAL, *);    break;
             case OP_DIVIDE:     BIN_OP(NUMBER_VAL, /);    break;
@@ -321,6 +355,7 @@ static interpreted_result run (void) {
                                  * else, keep going
                                  * */
                                 if(!IS_NUMBER(peek(0))) {
+                                    //(TODO)
                                     runtime_error("Operand must be a number.");
                                     return INTERPRET_RUNTIME_ERROR;
                                 }
@@ -331,7 +366,7 @@ static interpreted_result run (void) {
                                      push(*frame->closure->upvalues[slot]->location);
                                      break;
                                  }
-                                
+
             case OP_SET_UPVALUE: {
                                      uint8_t slot = READ_BYTE();
                                      *frame->closure->upvalues[slot]->location = peek(0);
@@ -342,6 +377,7 @@ static interpreted_result run (void) {
             case OP_RETURN:  {
                                  //simply exit, as print has been intro'd
                                  Val result = pop();
+                                 close_upvalues(frame->slots);
                                  vm.frame_count--;
                                  if(vm.frame_count == 0) {
                                      pop();
@@ -376,7 +412,7 @@ interpreted_result interpret(const char *source) {
     /* frame->ip = function->chunk.code; */
     /* frame->slots = vm.stack; */
 
-    
+
     /* top level function call */
     call(closure, 0);
 

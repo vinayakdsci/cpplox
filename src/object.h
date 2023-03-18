@@ -30,9 +30,11 @@ struct Obj {
     struct Obj *next;
 };
 
-typedef struct {
+typedef struct obj_upvalue{
     Obj obj;
     Val *location;
+    Val closed;
+    struct obj_upvalue *next;
 } obj_upvalue;
 
 /* first class construct */
