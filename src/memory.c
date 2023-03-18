@@ -21,6 +21,8 @@ static void free_ob(Obj *object) {
     /* each type of object must be handled differently */
     switch(object->type) {
         case OBJ_CLOSURE:  {
+                               obj_closure *closure = (obj_closure*)object;
+                               FREE_ARRAY(obj_upvalue*, closure->upvalues, closure->upvalue_count);
                                FREE(obj_closure, object);
                                break;
                            }
@@ -46,6 +48,9 @@ static void free_ob(Obj *object) {
                              FREE(obj_string, object);
                              break;
                          }
+        case OBJ_UPVALUE:
+                         FREE(obj_upvalue, object);
+                         break;
     }
 }
 

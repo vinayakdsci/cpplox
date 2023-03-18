@@ -45,6 +45,11 @@ typedef struct {
     int depth;
 } local;
 
+typedef struct {
+    uint8_t index;
+    bool is_local;
+} up_value;
+
 typedef enum {
     type_function,
     type_script
@@ -58,6 +63,7 @@ typedef struct compiler {
 
     local locals[UINT8_COUNT]; //array order analogous to declaration
     int local_count;
+    up_value upvalues[UINT8_COUNT];
     int scope_depth;
 } compiler;
 
@@ -316,6 +322,38 @@ static int resolve(compiler *comp, token *name) {
     return -1;
 }
 
+static int add_upvalue(compiler *comp, uint8_t index, bool local) {
+    int count = comp->function->up_count;
+    for(int i = 0; i < count; i++) {
+        up_value *value = &comp->upvalues[i];
+        if(value->index == index && value->is_local == local)
+           return i; 
+    }
+    if(count == UINT8_COUNT) {
+        error("too many closure vars in function");
+        return 0;
+    }
+    comp->upvalues[count].is_local = local;
+    comp->upvalues[count].index = index;
+    return comp->function->up_count++;
+}
+
+static int resolve_upvalue(compiler *comp, token *name) {
+    if(comp->encl == NULL) return -1;
+
+    int loc = resolve(comp->encl, name);
+
+    if(loc != -1)
+        return add_upvalue(comp, (uint8_t)loc, true);
+
+    int upvalue = resolve_upvalue(comp->encl, name);
+
+    if(upvalue != -1)
+        return add_upvalue(comp, (uint8_t)upvalue, false);
+
+    return -1;
+}
+
 static void named_var(token name, bool assignable) {
     /* take the current token, add it's lexeme to the constant table */
     uint8_t get_opcode, set_opcode;
@@ -323,6 +361,10 @@ static void named_var(token name, bool assignable) {
     if(arg != -1) {
         get_opcode = OP_GET_LOCAL;
         set_opcode = OP_SET_LOCAL;
+    }
+    else if((arg = resolve_upvalue(cur, &name)) != -1) {
+        get_opcode = OP_GET_UPVALUE;
+        set_opcode = OP_SET_UPVALUE;
     }
     else {
         arg = iden_constant(&name);
@@ -616,7 +658,13 @@ static void function(function_type type) {
 	block();
 	obj_function *fn = wrap_compiler();
         emit_two_bytes(OP_CLOSURE, make_constant(OBJ_VAL(fn)));
-	emit_two_bytes(OP_CONSTANT, make_constant(OBJ_VAL(fn)));
+        
+        for(int i = 0; i < fn->up_count; i++) {
+            emit_byte(comp.upvalues[i].is_local ? 1 : 0);
+            emit_byte(comp.upvalues[i].index);
+        }
+	
+        /* emit_two_bytes(OP_CONSTANT, make_constant(OBJ_VAL(fn))); */
 
 }
 

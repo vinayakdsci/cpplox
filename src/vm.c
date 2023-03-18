@@ -128,11 +128,16 @@ static bool call_val(Val value, int arg_count) {
                                  push(result);
                                  return true;
                              }
-            default: break;
+            default: printf("%d\n", OBJ_TYPE(value));
         }
     }
     runtime_error("can only call functions.");
     return false;
+}
+
+static obj_upvalue *capture_upvalue(Val *local) {
+    obj_upvalue *upval = new_upvalue(local);
+    return upval;
 }
 
 static bool is_false(Val value) {
@@ -270,6 +275,15 @@ static interpreted_result run (void) {
                                  obj_function *function = AS_FUNCTION(READ_CONSTANT());
                                  obj_closure *closure = new_closure(function);
                                  push(OBJ_VAL(closure));
+                                 for(int i = 0; i < closure->upvalue_count; ++i) {
+                                     uint8_t loc = READ_BYTE();
+                                     uint8_t index = READ_BYTE();
+
+                                     if(loc)
+                                         closure->upvalues[i] = capture_upvalue(frame->slots + index);
+                                     else 
+                                         closure->upvalues[i] = frame->closure->upvalues[index];
+                                 }
                                  break;
                              }
             case OP_ADD:       {
@@ -312,6 +326,17 @@ static interpreted_result run (void) {
                                 }
                                 push(NUMBER_VAL(-AS_NUMBER(pop())));
                                 break;
+            case OP_GET_UPVALUE: {
+                                     uint8_t slot = READ_BYTE();
+                                     push(*frame->closure->upvalues[slot]->location);
+                                     break;
+                                 }
+                                
+            case OP_SET_UPVALUE: {
+                                     uint8_t slot = READ_BYTE();
+                                     *frame->closure->upvalues[slot]->location = peek(0);
+                                     break;
+                                 }
             case OP_PRINT:      {print_val(pop()); break;}
             case OP_POP:        pop(); break;
             case OP_RETURN:  {

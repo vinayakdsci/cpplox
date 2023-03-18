@@ -21,6 +21,7 @@ typedef enum {
     OBJ_FUNCTION,
     OBJ_NATIVE,
     OBJ_STRING,
+    OBJ_UPVALUE
 } object_type;
 
 struct Obj {
@@ -29,10 +30,16 @@ struct Obj {
     struct Obj *next;
 };
 
+typedef struct {
+    Obj obj;
+    Val *location;
+} obj_upvalue;
+
 /* first class construct */
 typedef struct {
     Obj obj;
     int arity; //arg count of the function
+    int up_count;
     Chunk chunk;
     obj_string *name;
 } obj_function;
@@ -54,13 +61,14 @@ struct obj_string {
 typedef struct {
     Obj obj;
     obj_function *function;
+    obj_upvalue **upvalues;
+    int upvalue_count;
 } obj_closure;
 
 obj_closure *new_closure(obj_function *function);
 obj_function *new_function();
-
 obj_native *new_native(native function);
-
+obj_upvalue *new_upvalue(Val *slot);
 /* ensure cast safety */
 
 static inline bool is_object_type(Val value, object_type type) {

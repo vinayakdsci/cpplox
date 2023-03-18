@@ -1,5 +1,6 @@
 #include "debug.h"
 #include "value.h"
+#include "object.h"
 
 #include <stdio.h>
 
@@ -67,12 +68,22 @@ int disassembleInstruction(Chunk* chunk, int offset) {
                         return const_instruction("OP_DEF_GLOBAL", chunk, offset);
                 case OP_CALL:
                         return byte_instruction("OP_CALL", chunk, offset);
+                case OP_SET_UPVALUE:
+                        return byte_instruction("OP_SET_UPVALUE", chunk, offset);
+                case OP_GET_UPVALUE:
+                        return byte_instruction("OP_GET_UPVALUE", chunk, offset);
                 case OP_CLOSURE: {
                                          offset++;
                                          uint8_t constant = chunk->code[offset++];
                                          printf("%-16s %4d","OP_CLOSURE", constant);
                                          print_val(chunk->constants.values[constant]);
                                          printf("\n");
+                                         obj_function *fn = AS_FUNCTION(chunk->constants.values[constant]);
+                                         for (int x = 0; x < fn->up_count; x++) {
+                                                 int lc = chunk->code[offset++];
+                                                 int index = chunk->code[offset++];
+                                                 printf("%04d  |         %s %d\n", offset - 2 , lc ? "local" : "upvalue", index);
+                                         }
                                          return offset;
                                  }
                 case OP_GET_LOCAL:

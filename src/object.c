@@ -23,14 +23,22 @@ static Obj *allocate_object(size_t size, object_type type) {
 }
 
 obj_closure *new_closure(obj_function *function) {
+    obj_upvalue **upvalues = ALLOCATE(obj_upvalue*, function->up_count);
+
+    for(int i = 0;i < function->up_count; i++)
+        upvalues[i] = NULL;
+
     obj_closure *closure = ALLOCATE_OBJ(obj_closure, OBJ_CLOSURE);
     closure->function = function;
+    closure->upvalues = upvalues;
+    closure->upvalue_count = function->up_count;
     return closure;
 }
 
 obj_function *new_function() {
     obj_function *function = ALLOCATE_OBJ(obj_function, OBJ_FUNCTION);
     function->arity = 0;
+    function->up_count = 0;
     function->name = NULL;
     initChunk(&function->chunk);
     return function;
@@ -92,12 +100,18 @@ obj_string *copy_string(const char *chars, int length) {
     return allocate_string(heap_char, length, hash);
 }
 
+obj_upvalue *new_upvalue(Val *slot) {
+    obj_upvalue *upvalue = ALLOCATE_OBJ(obj_upvalue, OBJ_UPVALUE);
+    upvalue->location = slot;
+    return upvalue;
+} 
+
 static void print_function(obj_function *function) {
     if(function->name == NULL) {
         printf("<script>");
         return;
     }
-    printf("<fun %s>", function->name->chars);
+    printf("<fn %s>", function->name->chars);
 }
 
 void print_object(Val value) {
@@ -121,5 +135,8 @@ void print_object(Val value) {
                              break;
 
                          }
+        case OBJ_UPVALUE:
+                         printf("upvalue");
+                         break;
     }
 }
