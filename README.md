@@ -1,12 +1,7 @@
 # cpplox
 Lox Language implementation in C, code for the bytecode virtual machine
 
-## (TODO)
-
-*Mon 2023-03-06 23:29+0530*
-1. Implement a run-length encoding algorithm for line checking.
-
-**NB** :
+**N.B.** :
 Look up the following:
 § 6.7.2.1 13 (C specification)
 

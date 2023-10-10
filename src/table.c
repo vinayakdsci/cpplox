@@ -84,7 +84,7 @@ bool set_table(table *tab, obj_string *key, Val value) {
     /* allocate the table */
     if(tab->count + 1 > tab->capacity * MAX_LOAD) {
         int capacity = GROW_CAPACITY(tab->capacity);
-	adjust_table(tab, capacity);
+        adjust_table(tab, capacity);
     }
 
     entry *ent = find_entry(tab->entries, tab->capacity, key);

@@ -81,6 +81,7 @@ static token string() {
     advance();
     return make_token(TOKEN_STRING);
 }
+
 static token number() {
     while(is_digit(peek())) advance(); 
     /* check for a decimal place */

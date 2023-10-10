@@ -9,9 +9,8 @@ void *reallocate(void *pointer, size_t oldSize, size_t newSize) {
     return NULL;
   }
   // Free the memory allocation when the size reduces to 0
-
-  void *result = realloc(pointer, newSize); // Works like malloc when oldSize =
-					    // 0
+  void *result = realloc(pointer, newSize); // Works like malloc when oldSize = 0
+  
   if (result == NULL)
     exit(1); // Memory overflow
   return result;
@@ -57,12 +56,16 @@ static void free_ob(Obj *object) {
 void free_objects() {
     /* simply traverse the linked list and free each node */
     Obj *object = vm.objects;
+#ifdef DEBUG_TRACE_EXECUTION
     int counter = 0;
+#endif
     while(object != NULL) {
         Obj *next = object->next;
         free_ob(object);
         object = next;
+#ifdef DEBUG_TRACE_EXECUTION
         counter++;
+#endif
     }
 #ifdef DEBUG_TRACE_EXECUTION
     if(counter > 0)

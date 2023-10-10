@@ -5,7 +5,6 @@
 #include "memory.h"
 /* #include "value.h" */
 
-
 void init_val_array(val_array *array) {
     array->values = NULL;
     array->capacity = 0;

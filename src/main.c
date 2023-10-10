@@ -18,7 +18,7 @@ static void repl() {
         }
 
         char exit[4] = "exit";
-        if(strncmp(exit, line, 4) == 0)
+        if(!strncmp(exit, line, 4))
             return;
 
         interpret(line);

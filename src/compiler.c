@@ -68,7 +68,7 @@ typedef struct compiler {
     int scope_depth;
 } compiler;
 
- parser parser_obj;
+parser parser_obj;
 compiler *cur = NULL;
 Chunk *compile_chunk;
 
@@ -255,7 +255,7 @@ static void number(bool assignable) {
 
 static void string(bool assignable) {
     emit_constant(OBJ_VAL(copy_string(parser_obj.previous.start + 1, parser_obj.previous.length - 2)));
-        /* trim the first and the last quote */
+    /* trim the first and the last quote */
 }
 static uint8_t iden_constant(token *tok) {
     /* add the lexeme of the given token to the chunk constant table 
@@ -338,7 +338,7 @@ static int add_upvalue(compiler *comp, uint8_t index, bool local) {
     for(int i = 0; i < count; i++) {
         up_value *value = &comp->upvalues[i];
         if(value->index == index && value->is_local == local)
-           return i; 
+            return i; 
     }
     if(count == UINT8_COUNT) {
         error("too many closure vars in function");
@@ -589,10 +589,10 @@ static void var_declare() {
         expression();  //compile
     else 
         emit_byte(OP_NIL);
-        /* essentially, when the compiler sees var variable;
-         * it emits a NIL byte, essentially setting it as var variable = nil;
-         * this must set .number as 0
-         * */
+    /* essentially, when the compiler sees var variable;
+     * it emits a NIL byte, essentially setting it as var variable = nil;
+     * this must set .number as 0
+     * */
     consume(TOKEN_SEMICOLON, "expected ';' after variable declaration");
 
     var_define(global_var);
@@ -628,6 +628,7 @@ static void synchronize() {
         advance();  //keep consuming!
     }
 }
+
 static void begin_scope() {
     cur->scope_depth++;
 }
@@ -636,7 +637,7 @@ static void begin_scope() {
 static void end_scope() {
     cur->scope_depth--;
     while(cur->local_count > 0 &&
-          cur->locals[cur->local_count - 1].depth > cur->scope_depth) {
+            cur->locals[cur->local_count - 1].depth > cur->scope_depth) {
 
         if(cur->locals[cur->local_count - 1].captured){
             emit_byte(OP_CLOSE_UPVALUE);
@@ -656,33 +657,33 @@ static void block() {
 }
 
 static void function(function_type type) {
-	compiler comp;
-	init_compiler(&comp, type);
-	begin_scope();
-	consume(TOKEN_LEFT_PAREN, "expected '(' after fn name.");
-        if(!check(TOKEN_RIGHT_PAREN)){
-            do {
-                cur->function->arity++;
-                if(cur->function->arity > 255) {
-                    error("more than 255 params not allowed in function call.");
-                }
-                uint8_t constant = parse_variable("expected param name.") ;
-                var_define(constant);
-            } while(match(TOKEN_COMMA));
-        }
-        
-	consume(TOKEN_RIGHT_PAREN, "expected ')' after fn args.");
-	consume(TOKEN_LEFT_BRACE, "expected '{' to begin function body.");
-	block();
-	obj_function *fn = wrap_compiler();
-        emit_two_bytes(OP_CLOSURE, make_constant(OBJ_VAL(fn)));
-        
-        for(int i = 0; i < fn->up_count; i++) {
-            emit_byte(comp.upvalues[i].is_local ? 1 : 0);
-            emit_byte(comp.upvalues[i].index);
-        }
-	
-        /* emit_two_bytes(OP_CONSTANT, make_constant(OBJ_VAL(fn))); */
+    compiler comp;
+    init_compiler(&comp, type);
+    begin_scope();
+    consume(TOKEN_LEFT_PAREN, "expected '(' after fn name.");
+    if(!check(TOKEN_RIGHT_PAREN)){
+        do {
+            cur->function->arity++;
+            if(cur->function->arity > 255) {
+                error("more than 255 params not allowed in function call.");
+            }
+            uint8_t constant = parse_variable("expected param name.") ;
+            var_define(constant);
+        } while(match(TOKEN_COMMA));
+    }
+
+    consume(TOKEN_RIGHT_PAREN, "expected ')' after fn args.");
+    consume(TOKEN_LEFT_BRACE, "expected '{' to begin function body.");
+    block();
+    obj_function *fn = wrap_compiler();
+    emit_two_bytes(OP_CLOSURE, make_constant(OBJ_VAL(fn)));
+
+    for(int i = 0; i < fn->up_count; i++) {
+        emit_byte(comp.upvalues[i].is_local ? 1 : 0);
+        emit_byte(comp.upvalues[i].index);
+    }
+
+    /* emit_two_bytes(OP_CONSTANT, make_constant(OBJ_VAL(fn))); */
 
 }
 
@@ -819,7 +820,8 @@ static void return_statement() {
 }
 
 static void statement() {
-    if(match(TOKEN_PRINT)) print_statement();
+    if(match(TOKEN_PRINT))
+        print_statement();
     else if(match(TOKEN_IF)){
         if_statement();
     }
