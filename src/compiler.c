@@ -129,7 +129,6 @@ static void advance() {
 
 
 static void emit_byte(uint8_t byte) {
-    /* printf("Written into chunk"); */
     writeChunk(current_chunk(), byte, parser_obj.previous.line);
 }
 
